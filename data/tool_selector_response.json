@@ -1,0 +1,77 @@
+{
+  "response": {
+    "id": "chatcmpl-abc123",
+    "object": "chat.completion",
+    "created": 1677858242,
+    "model": "gpt-4",
+    "usage": {
+      "prompt_tokens": 873,
+      "completion_tokens": 482,
+      "total_tokens": 1355
+    },
+    "choices": [
+      {
+        "message": {
+          "role": "assistant",
+          "content": null,
+          "function_call": {
+            "name": "recommend_tools",
+            "arguments": "{\n  \"recommendations\": [\n    {\n      \"operation\": \"roughing\",\n      \"tool_id\": 102,\n      \"tool_name\": \"End Mill 16mm 4-Flute\",\n      \"speed_rpm\": 8000,\n      \"feed_rate\": 400,\n      \"features\": [\"feature-004\"],\n      \"explanation\": \"For roughing the pocket, a 16mm 4-flute end mill is selected as it efficiently removes material with its larger diameter. The 4 flutes provide good chip evacuation in aluminum. The pocket is 60x60mm, so a larger tool is more efficient for bulk material removal.\"\n    },\n    {\n      \"operation\": \"finishing\",\n      \"tool_id\": 103,\n      \"tool_name\": \"Ball End Mill 8mm\",\n      \"speed_rpm\": 10000,\n      \"feed_rate\": 300,\n      \"features\": [\"feature-004\"],\n      \"explanation\": \"For finishing the pocket with 5mm corner radius, an 8mm ball end mill is recommended. This will produce a smooth surface finish and properly form the corner radius.\"\n    },\n    {\n      \"operation\": \"finishing\",\n      \"tool_id\": 101,\n      \"tool_name\": \"End Mill 10mm 2-Flute\",\n      \"speed_rpm\": 9500,\n      \"feed_rate\": 350,\n      \"features\": [\"feature-003\"],\n      \"explanation\": \"For the 15mm wide slot, a 10mm end mill is optimal. The 2-flute design provides good chip evacuation in the confined slot space while machining aluminum.\"\n    },\n    {\n      \"operation\": \"drilling\",\n      \"tool_id\": 105,\n      \"tool_name\": \"Drill 12mm\",\n      \"speed_rpm\": 7000,\n      \"feed_rate\": 220,\n      \"features\": [\"feature-001\"],\n      \"explanation\": \"For the 12.5mm diameter hole, a 12mm drill is selected for the initial hole. This can be followed by a boring operation for the precise diameter if required.\"\n    },\n    {\n      \"operation\": \"drilling\",\n      \"tool_id\": 104,\n      \"tool_name\": \"Drill 8.5mm\",\n      \"speed_rpm\": 6000,\n      \"feed_rate\": 180,\n      \"features\": [\"feature-002\"],\n      \"explanation\": \"For the 8mm diameter hole, an 8.5mm drill is recommended. This slightly larger drill allows for finishing to the exact dimension if needed.\"\n    }\n  ],\n  \"summary\": \"The tool selection is optimized for machining aluminum 6061 on a Haas VF-2 machine. For the pocket, a roughing operation with a 16mm end mill followed by finishing with an 8mm ball end mill is recommended. The slot can be machined with a 10mm end mill. For holes, 12mm and 8.5mm drills are selected. All speeds and feeds are set for optimal aluminum machining while staying within the machine's capabilities.\"\n}"
+          }
+        },
+        "finish_reason": "function_call",
+        "index": 0
+      }
+    ]
+  },
+  "parsed_recommendations": {
+    "recommendations": [
+      {
+        "operation": "roughing",
+        "tool_id": 102,
+        "tool_name": "End Mill 16mm 4-Flute",
+        "speed_rpm": 8000,
+        "feed_rate": 400,
+        "features": ["feature-004"],
+        "explanation": "For roughing the pocket, a 16mm 4-flute end mill is selected as it efficiently removes material with its larger diameter. The 4 flutes provide good chip evacuation in aluminum. The pocket is 60x60mm, so a larger tool is more efficient for bulk material removal."
+      },
+      {
+        "operation": "finishing",
+        "tool_id": 103,
+        "tool_name": "Ball End Mill 8mm",
+        "speed_rpm": 10000,
+        "feed_rate": 300,
+        "features": ["feature-004"],
+        "explanation": "For finishing the pocket with 5mm corner radius, an 8mm ball end mill is recommended. This will produce a smooth surface finish and properly form the corner radius."
+      },
+      {
+        "operation": "finishing",
+        "tool_id": 101,
+        "tool_name": "End Mill 10mm 2-Flute",
+        "speed_rpm": 9500,
+        "feed_rate": 350,
+        "features": ["feature-003"],
+        "explanation": "For the 15mm wide slot, a 10mm end mill is optimal. The 2-flute design provides good chip evacuation in the confined slot space while machining aluminum."
+      },
+      {
+        "operation": "drilling",
+        "tool_id": 105,
+        "tool_name": "Drill 12mm",
+        "speed_rpm": 7000,
+        "feed_rate": 220,
+        "features": ["feature-001"],
+        "explanation": "For the 12.5mm diameter hole, a 12mm drill is selected for the initial hole. This can be followed by a boring operation for the precise diameter if required."
+      },
+      {
+        "operation": "drilling",
+        "tool_id": 104,
+        "tool_name": "Drill 8.5mm",
+        "speed_rpm": 6000,
+        "feed_rate": 180,
+        "features": ["feature-002"],
+        "explanation": "For the 8mm diameter hole, an 8.5mm drill is recommended. This slightly larger drill allows for finishing to the exact dimension if needed."
+      }
+    ],
+    "summary": "The tool selection is optimized for machining aluminum 6061 on a Haas VF-2 machine. For the pocket, a roughing operation with a 16mm end mill followed by finishing with an 8mm ball end mill is recommended. The slot can be machined with a 10mm end mill. For holes, 12mm and 8.5mm drills are selected. All speeds and feeds are set for optimal aluminum machining while staying within the machine's capabilities."
+  }
+} 
