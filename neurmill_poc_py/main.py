@@ -3,8 +3,7 @@ Main FastAPI application file that serves as the entry point for the CNC Tool Re
 This file sets up the backend server, defines API endpoints, and handles the communication between
 the frontend and the business logic layer.
 """
-
-from fastapi import FastAPI, UploadFile, File, Query, Body, HTTPException
+from fastapi import FastAPI, Depends, UploadFile, File, Query, Body, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -17,7 +16,7 @@ import json
 # Import local modules
 from models import Base, Machine, Material, Tool
 from database import engine, get_db
-from dummy_ai import recommend_tools, calculate_speeds_feeds, process_cad_file
+from dummy_ai import recommend_tool, calculate_speed_feed, process_cad_file
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -52,7 +51,7 @@ async def read_root():
 
 # API Endpoints for data retrieval
 @app.get("/machines", response_model=List[dict])
-async def get_machines(db: Session = get_db()):
+async def get_machines(db: Session = Depends(get_db)):
     """
     Returns a list of all available CNC machines from the database.
     Each machine entry includes its capabilities and specifications.
@@ -61,7 +60,7 @@ async def get_machines(db: Session = get_db()):
     return [{"id": m.id, "name": m.name, "max_rpm": m.max_rpm, "max_power": m.max_power} for m in machines]
 
 @app.get("/materials", response_model=List[dict])
-async def get_materials(db: Session = get_db()):
+async def get_materials(db: Session = Depends(get_db)):
     """
     Returns a list of all supported materials from the database.
     Each material entry includes its properties relevant to machining.
@@ -70,7 +69,7 @@ async def get_materials(db: Session = get_db()):
     return [{"id": m.id, "name": m.name, "hardness": m.hardness, "category": m.category} for m in materials]
 
 @app.get("/tools", response_model=List[dict])
-async def get_tools(db: Session = get_db()):
+async def get_tools(db: Session = Depends(get_db)):
     """
     Returns a list of all available cutting tools from the database.
     Each tool entry includes its specifications and capabilities.
@@ -85,7 +84,7 @@ async def get_tool_recommendations(
     operation_type: str,
     feature_type: str,
     machine_id: Optional[int] = None,
-    db: Session = get_db()
+    db: Session = Depends(get_db)
 ):
     """
     Recommends appropriate cutting tools based on material, operation type, and feature type.
@@ -103,7 +102,7 @@ async def get_speeds_feeds(
     material_id: int,
     operation_type: str,
     machine_id: Optional[int] = None,
-    db: Session = get_db()
+    db: Session = Depends(get_db)
 ):
     """
     Calculates optimal cutting parameters (speeds and feeds) based on tool, material,

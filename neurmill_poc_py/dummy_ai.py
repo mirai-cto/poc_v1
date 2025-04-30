@@ -1,60 +1,50 @@
 from typing import Dict, List, Tuple
 import random
 
-class ToolRecommender:
-    def __init__(self):
-        self.tools = {
-            "end_mill": ["4-flute carbide", "2-flute carbide", "3-flute carbide"],
-            "face_mill": ["4-insert carbide", "6-insert carbide"],
-            "drill": ["HSS", "Carbide"],
-        }
-        
-        self.materials = {
-            "aluminum": {"speed_factor": 1.0, "feed_factor": 1.0},
-            "steel": {"speed_factor": 0.5, "feed_factor": 0.5},
-            "stainless": {"speed_factor": 0.3, "feed_factor": 0.3},
-        }
-        
-        self.operations = {
-            "roughing": {"speed_factor": 1.0, "feed_factor": 1.0},
-            "finishing": {"speed_factor": 1.2, "feed_factor": 0.8},
-        }
+def process_cad_file(file_bytes):
+    """
+    Simulates parsing a CAD file and extracting features.
+    """
+    # Just return a hardcoded list of features for now
+    return ["pocket", "hole", "slot"]
 
-    def recommend_tool(self, material: str, operation: str, feature_type: str) -> Dict:
-        # Simple rule-based recommendation
-        if feature_type == "pocket":
-            tool_type = "end_mill"
-        elif feature_type == "face":
-            tool_type = "face_mill"
-        elif feature_type == "hole":
-            tool_type = "drill"
-        else:
-            tool_type = "end_mill"  # default
+def recommend_tool(feature, material_hardness, machine_max_rpm):
+    """
+    Recommend a tool based on feature type, material hardness, and machine limits.
+    """
+    tool_map = {
+        "pocket": {"tool": "12mm Flat Endmill", "base_rpm": 8000},
+        "hole": {"tool": "6mm Drill Bit", "base_rpm": 5000},
+        "slot": {"tool": "8mm Ball Nose", "base_rpm": 7000}
+    }
 
-        tool = random.choice(self.tools[tool_type])
-        
-        # Calculate speed and feed
-        base_speed = 1000  # SFM
-        base_feed = 0.005  # IPT
-        
-        material_factors = self.materials.get(material, {"speed_factor": 1.0, "feed_factor": 1.0})
-        operation_factors = self.operations.get(operation, {"speed_factor": 1.0, "feed_factor": 1.0})
-        
-        speed = base_speed * material_factors["speed_factor"] * operation_factors["speed_factor"]
-        feed = base_feed * material_factors["feed_factor"] * operation_factors["feed_factor"]
-        
-        return {
-            "tool": tool,
-            "speed": round(speed, 2),
-            "feed": round(feed, 4),
-            "tool_type": tool_type,
-            "material": material,
-            "operation": operation
-        }
+    default_tool = {"tool": "Generic Tool", "base_rpm": 6000}
+    base = tool_map.get(feature, default_tool)
 
-    def calculate_speed_feed(self, tool: str, material: str, operation: str) -> Tuple[float, float]:
-        recommendation = self.recommend_tool(material, operation, "general")
-        return recommendation["speed"], recommendation["feed"] 
-    
+    rpm = int(base["base_rpm"] * (1 - material_hardness * 0.05))
+    rpm = min(rpm, machine_max_rpm)
 
-    
+    return {
+        "feature": feature,
+        "tool": base["tool"],
+        "suggested_rpm": rpm
+    }
+
+def calculate_speed_feed(tool_name, wear_score):
+    """
+    Adjusts speed and feed based on tool wear score.
+    """
+    base_rpm = 8000
+    base_feed = 600
+
+    factor = 1 - (wear_score / 2)
+    adjusted_rpm = int(base_rpm * factor)
+    adjusted_feed = int(base_feed * factor)
+
+    return {
+        "tool": tool_name,
+        "rpm": adjusted_rpm,
+        "feed": adjusted_feed,
+        "max_doc": round(1.0 - wear_score * 0.3, 2),
+        "chatter_risk": "medium" if wear_score > 0.6 else "low"
+    }

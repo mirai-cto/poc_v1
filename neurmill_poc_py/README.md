@@ -28,6 +28,15 @@ neurmill_poc_py/
 - **Bootstrap**: CSS framework for responsive design
 - **Fetch API**: For making HTTP requests to the backend
 
+## Seed DB
+Seeding the Database
+
+First, load your tools.csv and machines.csv into the database:
+```bash
+   python seed_data.py
+```
+It will create a file neuralmill.db in your project directory with your seeded tools and machines.
+
 ## Setup Instructions
 
 1. Create and activate a virtual environment:
