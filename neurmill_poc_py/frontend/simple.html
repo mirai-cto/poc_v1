@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuralMill POC</title>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        select, button {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; margin-bottom: 30px;">NeuralMill Tool Recommender</h1>
+        
+        <div class="card">
+            <form id="toolForm">
+                <div class="form-group">
+                    <label for="material">Material</label>
+                    <select id="material" required>
+                        <option value="">Select Material</option>
+                        <option value="aluminum">Aluminum</option>
+                        <option value="steel">Steel</option>
+                        <option value="stainless">Stainless Steel</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="operation">Operation</label>
+                    <select id="operation" required>
+                        <option value="">Select Operation</option>
+                        <option value="roughing">Roughing</option>
+                        <option value="finishing">Finishing</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="feature">Feature Type</label>
+                    <select id="feature" required>
+                        <option value="">Select Feature</option>
+                        <option value="pocket">Pocket</option>
+                        <option value="face">Face</option>
+                        <option value="hole">Hole</option>
+                    </select>
+                </div>
+                
+                <button type="submit">Get Recommendation</button>
+            </form>
+        </div>
+        
+        <div id="result" class="card">
+            <h3>Recommended Tool</h3>
+            <div id="recommendationDetails"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const toolForm = document.getElementById('toolForm');
+            const resultDiv = document.getElementById('result');
+            const recommendationDetails = document.getElementById('recommendationDetails');
+
+            toolForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const material = document.getElementById('material').value;
+                const operation = document.getElementById('operation').value;
+                const feature = document.getElementById('feature').value;
+
+                try {
+                    const response = await fetch('http://localhost:8000/api/recommend-tool', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            material,
+                            operation,
+                            feature_type: feature,
+                            machine_type: 'cnc'
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+
+                    const data = await response.json();
+                    
+                    recommendationDetails.innerHTML = `
+                        <p><strong>Tool:</strong> ${data.tool}</p>
+                        <p><strong>Speed:</strong> ${data.speed} SFM</p>
+                        <p><strong>Feed:</strong> ${data.feed} IPT</p>
+                        <p><strong>Tool Type:</strong> ${data.tool_type}</p>
+                        <p><strong>Material:</strong> ${data.material}</p>
+                        <p><strong>Operation:</strong> ${data.operation}</p>
+                    `;
+                    
+                    resultDiv.style.display = 'block';
+                } catch (error) {
+                    console.error('Error:', error);
+                    recommendationDetails.innerHTML = `
+                        <div style="color: red;">
+                            Error getting tool recommendation. Please try again.
+                        </div>
+                    `;
+                    resultDiv.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
