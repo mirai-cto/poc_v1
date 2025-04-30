@@ -57,7 +57,13 @@ async def get_machines(db: Session = Depends(get_db)):
     Each machine entry includes its capabilities and specifications.
     """
     machines = db.query(Machine).all()
-    return [{"id": m.id, "name": m.name, "max_rpm": m.max_rpm, "max_power": m.max_power} for m in machines]
+    return [{
+        "id": m.id,
+        "title": m.title,
+        "spindle info":json.loads(m.spindle_json),
+        "description": m.description,
+        "product_link": m.product_link
+    } for m in machines]
 
 @app.get("/materials", response_model=List[dict])
 async def get_materials(db: Session = Depends(get_db)):
