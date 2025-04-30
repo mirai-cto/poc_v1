@@ -1,9 +1,0 @@
-id,name,model,manufacturer,max_rpm,max_feed_rate,spindle_power,max_tool_diameter,min_tool_diameter
-1,Haas VF-2,VF-2,Haas,12000,500.0,22.4,89.0,0.5
-2,DMG Mori NLX 2500,NLX 2500,DMG Mori,4000,300.0,18.5,76.0,1.0
-3,Mazak INTEGREX i-200S,INTEGREX i-200S,Mazak,12000,450.0,30.0,90.0,0.8
-4,Okuma GENOS M560-V,GENOS M560-V,Okuma,15000,550.0,22.0,80.0,0.5
-5,Doosan DNM 4500,DNM 4500,Doosan,12000,480.0,18.5,80.0,0.8
-6,Hurco VM10i,VM10i,Hurco,10000,400.0,13.5,75.0,1.0
-7,Makino A51nx,A51nx,Makino,14000,500.0,22.0,80.0,0.5
-8,Haas ST-20,ST-20,Haas,4000,30.0,14.9,152.0,3.0 
