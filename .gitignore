@@ -9,4 +9,15 @@ __pycache__/
 .env
 
 # VS Code settings
+# Ignore any virtual environments (no matter where they are)
+**/venv/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore environment variables
+.env
+
+# Ignore VS Code settings (optional)
 .vscode/
