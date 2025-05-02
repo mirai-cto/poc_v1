@@ -49,15 +49,26 @@ async def read_root():
     """
     return FileResponse('frontend/index.html')
 
-# API Endpoints for data retrieval
 @app.get("/machines", response_model=List[dict])
 async def get_machines(db: Session = Depends(get_db)):
     """
-    Returns a list of all available CNC machines from the database.
-    Each machine entry includes its capabilities and specifications.
+    Returns a list of all available CNC machines from the database,
+    including parsed spindle specs (max RPM and power).
     """
     machines = db.query(Machine).all()
-    return [{"id": m.id, "name": m.name, "max_rpm": m.max_rpm, "max_power": m.max_power} for m in machines]
+    results = []
+    for m in machines:
+        spindle_data = json.loads(m.spindle_json) if m.spindle_json else {}
+        
+        results.append({
+            "id": m.id,
+            "title": m.title,
+            "description": m.description,
+            "product_link": m.product_link,
+            "max_rpm": spindle_data.get("max_rpm"),
+            "max_power": spindle_data.get("power")
+        })
+    return results
 
 @app.get("/materials", response_model=List[dict])
 async def get_materials(db: Session = Depends(get_db)):
