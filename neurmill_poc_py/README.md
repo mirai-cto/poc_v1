@@ -59,6 +59,28 @@ python main.py
 - Open `frontend/index.html` directly in your browser
 - Or access through the server at `http://localhost:8000`
 
+5. Start your backend server:
+```bash
+   uvicorn main:app --reload
+```
+--reload makes the server auto-refresh when you save changes.
+Backend will be live at:
+http://127.0.0.1:8000
+Visit http://127.0.0.1:8000/docs
+This opens Swagger UI to test all your APIs manually — no frontend needed!
+
+You’ll see:
+
+/machines
+/materials
+/tools
+/upload_cad
+/recommend_tools
+/calculate_speeds_feeds
+
+You can call each endpoint directly from Swagger UI by clicking “Try It Out”.
+
+
 ## Application Flow
 
 1. **User Interface** (`frontend/index.html`):
