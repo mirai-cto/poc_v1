@@ -3,20 +3,29 @@ Main FastAPI application file that serves as the entry point for the CNC Tool Re
 This file sets up the backend server, defines API endpoints, and handles the communication between
 the frontend and the business logic layer.
 """
-from fastapi import FastAPI, Depends, UploadFile, File, Query, Body, HTTPException
+from fastapi import FastAPI, Depends, UploadFile, File, Query, Body, HTTPException, APIRouter, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from pydantic import BaseModel
 import os
 import shutil
 import json
+import logging
+from tool_recommender import ToolRecommender
+
 
 # Import local modules
 from models import Base, Machine, Material, Tool
 from database import engine, get_db
-from dummy_ai import recommend_tool, calculate_speed_feed, process_cad_file
+from dummy_ai import recommend_from_cad, calculate_speed_feed, process_cad_file
+
+class ToolRequest(BaseModel):
+    material: str
+    machine_type: str
+    machine_id: Optional[int] = None
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -88,24 +97,31 @@ async def get_tools(db: Session = Depends(get_db)):
     tools = db.query(Tool).all()
     return [{"id": t.id, "name": t.name, "diameter": t.diameter, "type": t.type} for t in tools]
 
-# API Endpoints for tool recommendation and parameter calculation
-@app.post("/recommend_tools")
+@app.post("/api/recommend-tool")
 async def get_tool_recommendations(
-    material_id: int,
-    operation_type: str,
-    feature_type: str,
-    machine_id: Optional[int] = None,
+    material: str = Form(...),
+    machine_type: str = Form(...),
+    cad_file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     """
-    Recommends appropriate cutting tools based on material, operation type, and feature type.
-    Optionally considers machine capabilities if machine_id is provided.
+    Recommends appropriate cutting tools based on uploaded CAD file,
+    selected material, and machine type.
     """
     try:
-        recommendations = recommend_tools(material_id, operation_type, feature_type, machine_id, db)
+        cad_bytes = await cad_file.read()
+
+        tr = ToolRecommender(db)
+        recommendations = tr.recommend_tools(
+            cad_bytes=cad_bytes,
+            material=material,
+            machine_type=machine_type
+        )
+
         return {"recommendations": recommendations}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.post("/calculate_speeds_feeds")
 async def get_speeds_feeds(
@@ -149,7 +165,9 @@ async def upload_cad(file: UploadFile = File(...)):
         
         return {"features": features}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPEx
+    
+
 
 # Run the application
 if __name__ == "__main__":

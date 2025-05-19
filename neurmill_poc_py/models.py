@@ -22,6 +22,7 @@ class Tool(Base):
     __tablename__ = "tools"
 
     tool_id = Column(Integer, primary_key=True, index=True)
+    #material_id = Column(Integer)
     name = Column(String, index=True)
     type = Column(String)
     diameter = Column(Float)

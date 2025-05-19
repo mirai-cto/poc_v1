@@ -8,7 +8,8 @@ This module contains the core logic for:
 
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
-from .models import Tool, Machine, Material
+from models import Tool, Machine, Material
+from dummy_ai import recommend_from_cad
 
 class ToolRecommender:
     """
@@ -27,9 +28,9 @@ class ToolRecommender:
 
     def recommend_tools(
         self,
-        material_id: int,
-        operation_type: str,
-        feature_type: str,
+        cad_bytes: bytes,
+        material: str,
+        machine_type: str,
         machine_id: Optional[int] = None
     ) -> List[Dict]:
         """
@@ -45,22 +46,10 @@ class ToolRecommender:
             List[Dict]: List of recommended tools with their specifications
         """
         # Query tools that match the material and operation requirements
-        tools = self.db.query(Tool).filter(
-            Tool.material_id == material_id
-        ).all()
+        print("Hello")
+        tools = self.db.query(Tool).all()
         
-        # Filter tools based on operation type and feature requirements
-        recommended_tools = []
-        for tool in tools:
-            if self._is_suitable_for_operation(tool, operation_type, feature_type):
-                if machine_id:
-                    # Check machine compatibility if machine_id is provided
-                    if self._is_machine_compatible(tool, machine_id):
-                        recommended_tools.append(self._format_tool_data(tool))
-                else:
-                    recommended_tools.append(self._format_tool_data(tool))
-        
-        return recommended_tools
+        return recommend_from_cad(cad_bytes, material, machine_type, self.db)
 
     def calculate_speeds_feeds(
         self,
