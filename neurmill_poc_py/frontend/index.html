@@ -56,19 +56,15 @@
                     <label for="material">Material</label>
                     <select id="material" required>
                         <option value="">Select Material</option>
-                        <option value="aluminum">Aluminum</option>
-                        <option value="steel">Steel</option>
-                        <option value="stainless">Stainless Steel</option>
+                        <!-- Dynamically loaded options will appear here -->
                     </select>
                 </div>
                 
                 <div class="form-group">
                     <label for="machine_type">Machine Type</label>
                     <select id="machine_type" required>
-                        <option value="">Select Feature</option>
-                        <option value="3 Axis Vertical Mill">3 Axis Vertical Mill</option>
-                        <option value="5 axis Mill">5 axis Mill</option>
-                        <option value="Manual Lathe">Manual Lathe</option>
+                        <option value="">Select Machine</option>
+                        <!-- Dynamically loaded options will appear here -->
                     </select>
                 </div>
 
@@ -92,6 +88,39 @@
             const toolForm = document.getElementById('toolForm');
             const resultDiv = document.getElementById('result');
             const recommendationDetails = document.getElementById('recommendationDetails');
+            
+            // Dynamically populate material dropdown
+            const materialSelect = document.getElementById('material');
+            fetch('http://localhost:8000/materials')
+                .then(response => response.json())
+                .then(materials => {
+                    materials.forEach(name => {
+                        const option = document.createElement("option");
+                        option.value = name;
+                        option.textContent = name;
+                        materialSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Failed to load materials:', error);
+                });
+
+            // Populate machines dynamically
+            const machineSelect = document.getElementById('machine_type');
+            fetch('http://localhost:8000/machines')
+                .then(response => response.json())
+                .then(machines => {
+                    const machineSelect = document.getElementById('machine_type');
+                    machines.forEach(machine => {
+                        const option = document.createElement("option");
+                        option.value = machine.title;
+                        option.textContent = `${machine.title} - ${machine.max_rpm || "?"} RPM / ${machine.max_power || "?"} HP`;
+                        machineSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Failed to load machines:', error);
+                });
     
             toolForm.addEventListener('submit', async (e) => {
                 e.preventDefault();

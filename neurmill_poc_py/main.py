@@ -15,7 +15,7 @@ import shutil
 import json
 import logging
 from tool_recommender import ToolRecommender
-
+import ast
 
 # Import local modules
 from models import Base, Machine, Material, Tool
@@ -67,26 +67,38 @@ async def get_machines(db: Session = Depends(get_db)):
     machines = db.query(Machine).all()
     results = []
     for m in machines:
-        spindle_data = json.loads(m.spindle_json) if m.spindle_json else {}
-        
+        try:
+            # Try both json.loads and ast.literal_eval for fallback
+            spindle_data = json.loads(m.spindle_json)
+            if isinstance(spindle_data, str):
+                spindle_data = ast.literal_eval(spindle_data)
+        except Exception as e:
+            print(f"❌ Failed to parse spindle_json for {m.title}: {e}")
+            spindle_data = {}
+
+        print("Parsed spindle_json for", m.title, "→", spindle_data)
+
         results.append({
             "id": m.id,
             "title": m.title,
             "description": m.description,
             "product_link": m.product_link,
-            "max_rpm": spindle_data.get("max_rpm"),
-            "max_power": spindle_data.get("power")
+            "max_rpm": spindle_data.get("Max Speed", "").replace(" rpm", ""),
+            "max_power": spindle_data.get("Max Rating", "")
         })
     return results
 
-@app.get("/materials", response_model=List[dict])
+
+@app.get("/materials", response_model=List[str])
 async def get_materials(db: Session = Depends(get_db)):
     """
     Returns a list of all supported materials from the database.
     Each material entry includes its properties relevant to machining.
     """
     materials = db.query(Material).all()
-    return [{"id": m.id, "name": m.name, "hardness": m.hardness, "category": m.category} for m in materials]
+    names = [str(m.name) for m in materials if isinstance(m.name, str) and m.name.strip()]
+    print("✔ Materials fetched:", names)
+    return names
 
 @app.get("/tools", response_model=List[dict])
 async def get_tools(db: Session = Depends(get_db)):
