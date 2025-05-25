@@ -53,7 +53,7 @@ def load_machines(csv_path):
     
     # 💥 Step 1: Clear old records
     db.query(Machine).delete()
-    
+
     df = pd.read_csv(csv_path)
 
     for _, row in df.iterrows():
@@ -90,8 +90,7 @@ def load_materials(csv_path):
     for _, row in df.iterrows():
         name = row.get("Material")
         hardness_raw = row.get("Hardness", "")
-
-        # Clean name
+        
         if isinstance(name, str):
             name = name.split("/")[0].strip()
 
@@ -106,16 +105,23 @@ def load_materials(csv_path):
             hardness = 0.0
 
         # Skip if already exists
-        existing_material = db.query(models.Material).filter_by(name=name).first()
-        if existing_material:
+        existing = db.query(models.Material).filter_by(name=name).first()
+        if existing:
             continue
 
-        # Insert new material
         material = models.Material(
             name=name,
             hardness=hardness,
-            machinability=50.0  # placeholder
+            machinability=50.0,  # Placeholder or calculated value
+            yield_strength=str(row.get("Yield strength (MPa)", "")).strip(),
+            tensile_strength=str(row.get("Tensile strength (MPa)", "")).strip(),
+            elongation=str(row.get("Elongation at break (%)", "")).strip(),
+            modulus_elasticity=str(row.get("Modulus of elasticity (GPa)", "")).strip(),
+            tensile_modulus = str(row.get("Tensile modulus (MPa)", "")).strip(),
+            flexural_strength=str(row.get("Flexural strength (MPa)", "")).strip(),
+            flexural_modulus=str(row.get("Flexural modulus (GPa)", "")).strip()
         )
+
         db.add(material)
 
     db.commit()

@@ -14,15 +14,16 @@ from dummy_ai import recommend_from_cad
 class ToolRecommender:
     """
     Core class for tool recommendation and parameter calculation.
-    Implements algorithms for selecting optimal tools and cutting parameters.
+    Orchestrates the process of parsing CAD data, retrieving tools and machines,
+    and generating a machining plan via AI-based logic.
     """
-    
+
     def __init__(self, db: Session):
         """
         Initialize the recommender with a database session.
-        
+
         Args:
-            db (Session): SQLAlchemy database session for querying tool data
+            db (Session): SQLAlchemy database session for querying tool and machine data
         """
         self.db = db
 
@@ -34,22 +35,29 @@ class ToolRecommender:
         machine_id: Optional[int] = None
     ) -> List[Dict]:
         """
-        Recommend cutting tools based on material, operation, and feature requirements.
-        
+        Recommend cutting tools based on CAD geometry, material, and machine constraints.
+
         Args:
-            material_id (int): ID of the workpiece material
-            operation_type (str): Type of machining operation (e.g., 'roughing', 'finishing')
-            feature_type (str): Type of feature being machined (e.g., 'pocket', 'slot')
-            machine_id (Optional[int]): ID of the target machine (for machine-specific constraints)
-            
+            cad_bytes (bytes): Raw bytes of the uploaded CAD file
+            material (str): Workpiece material (e.g., "Aluminium 6061")
+            machine_type (str): Type of CNC machine (e.g., "VF-2")
+            machine_id (Optional[int]): (Optional) Machine ID for more specific filtering
+
         Returns:
-            List[Dict]: List of recommended tools with their specifications
+            List[Dict]: List of recommended tools and associated metadata
         """
-        # Query tools that match the material and operation requirements
-        print("Hello")
-        tools = self.db.query(Tool).all()
-        
-        return recommend_from_cad(cad_bytes, material, machine_type, self.db)
+        print("🧠 Running ToolRecommender logic...")
+
+        # Delegate logic to AI mock
+        recommendations = recommend_from_cad(
+            cad_bytes=cad_bytes,
+            material=material,
+            machine_type=machine_type,
+            db=self.db
+        )
+
+        return recommendations
+
 
     def calculate_speeds_feeds(
         self,

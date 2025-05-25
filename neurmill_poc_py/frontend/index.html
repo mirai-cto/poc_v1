@@ -94,12 +94,13 @@
             fetch('http://localhost:8000/materials')
                 .then(response => response.json())
                 .then(materials => {
-                    materials.forEach(name => {
+                    materials.forEach(material => {
                         const option = document.createElement("option");
-                        option.value = name;
-                        option.textContent = name;
+                        option.value = material.name;           // Value used in form submission
+                        option.textContent = material.name;     // Visible in dropdown
                         materialSelect.appendChild(option);
                     });
+
                 })
                 .catch(error => {
                     console.error('Failed to load materials:', error);
@@ -154,13 +155,22 @@
                     if (!data.recommendations || data.recommendations.length === 0) {
                         recommendationDetails.innerHTML = `<p>No suitable tools found for this CAD file.</p>`;
                     } else {
-                        recommendationDetails.innerHTML = data.recommendations.map(rec => `
-                            <p><strong>Tool:</strong> ${rec.tool}</p>
-                            <p><strong>Speed:</strong> ${rec.speed} SFM</p>
-                            <p><strong>Feed:</strong> ${rec.feed} IPT</p>
-                            <p><strong>Tool Type:</strong> ${rec.tool_type}</p>
-                            <hr />
-                        `).join('');
+                        recommendationDetails.innerHTML = data.recommendations.map(rec => {
+                            const tool = rec.selected_tool || {};
+                            return `
+                                <p><strong>Name:</strong> ${tool.name || 'undefined'}</p>
+                                <p><strong>Type:</strong> ${tool.type || 'undefined'}</p>
+                                <p><strong>Material:</strong> ${tool.material || 'undefined'}</p>
+                                <p><strong>Diameter:</strong> ${tool.diameter || 'undefined'}</p>
+                                <p><strong>Flutes:</strong> ${tool.flute_count || 'undefined'}</p>
+                                <p><strong>Coating:</strong> ${tool.coating || 'undefined'}</p>
+                                <p><strong>Center Cutting:</strong> ${tool.center_cutting || 'undefined'}</p>
+                                <p><strong>Manufacturer:</strong> ${tool.manufacturer || 'undefined'}</p>
+                                <a href="${tool.product_link || '#'}" target="_blank">Product Link</a>
+                                <hr />
+                            `;
+                        }).join('');
+
                     }
     
                     resultDiv.style.display = 'block';

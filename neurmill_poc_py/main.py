@@ -16,6 +16,7 @@ import json
 import logging
 from tool_recommender import ToolRecommender
 import ast
+import models
 
 # Import local modules
 from models import Base, Machine, Material, Tool
@@ -89,16 +90,23 @@ async def get_machines(db: Session = Depends(get_db)):
     return results
 
 
-@app.get("/materials", response_model=List[str])
+@app.get("/materials", response_model=List[dict])
 async def get_materials(db: Session = Depends(get_db)):
     """
     Returns a list of all supported materials from the database.
     Each material entry includes its properties relevant to machining.
     """
     materials = db.query(Material).all()
-    names = [str(m.name) for m in materials if isinstance(m.name, str) and m.name.strip()]
-    print("✔ Materials fetched:", names)
-    return names
+    result = [
+        {
+            "name": m.name,
+            "hardness": m.hardness,
+            "yield_strength": m.yield_strength
+        }
+        for m in materials
+    ]
+    print("✔ Materials fetched:", result) # print statement for debugging
+    return result
 
 @app.get("/tools", response_model=List[dict])
 async def get_tools(db: Session = Depends(get_db)):
@@ -122,7 +130,9 @@ async def get_tool_recommendations(
     """
     try:
         cad_bytes = await cad_file.read()
+        print("📩 Received CAD file for tool recommendation")
 
+        # Use the core recommender class
         tr = ToolRecommender(db)
         recommendations = tr.recommend_tools(
             cad_bytes=cad_bytes,
@@ -130,8 +140,11 @@ async def get_tool_recommendations(
             machine_type=machine_type
         )
 
+        print("✅ Tool recommendations generated")
         return {"recommendations": recommendations}
+
     except Exception as e:
+        print(f"❌ Recommendation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
