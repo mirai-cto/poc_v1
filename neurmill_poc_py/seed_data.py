@@ -1,9 +1,14 @@
 import pandas as pd
 import json
-from database import SessionLocal
+from database import SessionLocal # importing a sesson factory
 from models import Machine
 import models
 import ast
+
+# tool = Tool(...)  # Create tool objects
+# db.add(tool)      # Add them to session
+# db.commit()       # Write to DB
+
 
 def safe_eval(field_val, field_name, title):
     try:
@@ -48,6 +53,7 @@ def load_tools(csv_path):
     db.close()
     print("✅ Tools loaded successfully.")
 
+#  Load CNC machine data (like specs and configs) into the Machine table
 def load_machines(csv_path):
     db = SessionLocal()
     
@@ -83,6 +89,7 @@ def load_machines(csv_path):
     db.close()
     print("✅ Machines loaded successfully.")
 
+# Populate the Material table with material properties (steel, aluminum, etc.)
 def load_materials(csv_path):
     db = SessionLocal()
     df = pd.read_csv(csv_path)
@@ -128,7 +135,7 @@ def load_materials(csv_path):
     db.close()
     print("✅ Materials loaded successfully.")
 
-
+# Load operations (like description, speed rate, feed rate) into the Operation table
 def load_operations(csv_path):
     db = SessionLocal()
     df = pd.read_csv(csv_path)

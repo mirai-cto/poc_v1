@@ -139,8 +139,7 @@ def recommend_from_cad(cad_bytes: bytes, material: str, machine_type: str, db) -
         1. Parses the CAD file into geometric features (diameter, position, type).
         2. Retrieves material properties and maps them to generalized material classes.
         3. Retrieves machine spindle limits (e.g., Max RPM) and other constraints.
-        4. Filters tools that support the material and do not exceed machine RPM.
-        5. Matches filtered tools to features using the `plan_tool_strategy` function.
+        4. Matches filtered tools to features using the `plan_tool_strategy` function.
     - The material name is normalized using `ALLOY_TO_CLASS` mapping for filtering.
     - The actual tool-feature matching is handled by a separate planner module.
     """

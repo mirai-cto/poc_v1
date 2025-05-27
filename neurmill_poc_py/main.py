@@ -114,7 +114,7 @@ async def get_tools(db: Session = Depends(get_db)):
     Returns a list of all available cutting tools from the database.
     Each tool entry includes its specifications and capabilities.
     """
-    tools = db.query(Tool).all()
+    tools = db.query(Tool).all() # Query all rows from the tools table
     return [{"id": t.id, "name": t.name, "diameter": t.diameter, "type": t.type} for t in tools]
 
 @app.post("/api/recommend-tool")
@@ -134,6 +134,7 @@ async def get_tool_recommendations(
 
         # Use the core recommender class
         tr = ToolRecommender(db)
+        
         recommendations = tr.recommend_tools(
             cad_bytes=cad_bytes,
             material=material,
