@@ -117,6 +117,13 @@ async def get_tools(db: Session = Depends(get_db)):
     tools = db.query(Tool).all() # Query all rows from the tools table
     return [{"id": t.id, "name": t.name, "diameter": t.diameter, "type": t.type} for t in tools]
 
+@app.post("/api/preview-features")
+async def preview_features(file: UploadFile = File(...)):
+    cad_bytes = await file.read()
+    features = process_cad_file(cad_bytes)
+    return {"features": features}
+
+
 @app.post("/api/recommend-tool")
 async def get_tool_recommendations(
     material: str = Form(...),

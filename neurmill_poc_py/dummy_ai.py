@@ -135,7 +135,7 @@ def recommend_from_cad(cad_bytes: bytes, material: str, machine_type: str, db) -
 
     Notes
     -----
-    - This function performs 5 key steps:
+    - This function performs 4 key steps:
         1. Parses the CAD file into geometric features (diameter, position, type).
         2. Retrieves material properties and maps them to generalized material classes.
         3. Retrieves machine spindle limits (e.g., Max RPM) and other constraints.

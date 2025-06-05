@@ -76,6 +76,12 @@
                 <button type="submit">Get Recommendation</button>
             </form>
         </div>
+
+        <div id="featurePreview" class="card" style="display: none;">
+            <h3>Extracted Features</h3>
+            <div id="featureList"></div>
+            <button onclick="submitToolRequest()">Approve & Get Tool Recommendations</button>
+        </div>
         
         <div id="result" class="card">
             <h3>Recommended Tool</h3>
@@ -84,108 +90,139 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const toolForm = document.getElementById('toolForm');
-            const resultDiv = document.getElementById('result');
-            const recommendationDetails = document.getElementById('recommendationDetails');
-            
-            // Dynamically populate material dropdown
-            const materialSelect = document.getElementById('material');
-            fetch('http://localhost:8000/materials')
-                .then(response => response.json())
-                .then(materials => {
-                    materials.forEach(material => {
-                        const option = document.createElement("option");
-                        option.value = material.name;           // Value used in form submission
-                        option.textContent = material.name;     // Visible in dropdown
-                        materialSelect.appendChild(option);
-                    });
+document.addEventListener('DOMContentLoaded', () => {
+    const toolForm = document.getElementById('toolForm');
+    const resultDiv = document.getElementById('result');
+    const recommendationDetails = document.getElementById('recommendationDetails');
+    const featurePreview = document.getElementById('featurePreview');
+    const featureList = document.getElementById('featureList');
 
-                })
-                .catch(error => {
-                    console.error('Failed to load materials:', error);
-                });
-
-            // Populate machines dynamically
-            const machineSelect = document.getElementById('machine_type');
-            fetch('http://localhost:8000/machines')
-                .then(response => response.json())
-                .then(machines => {
-                    const machineSelect = document.getElementById('machine_type');
-                    machines.forEach(machine => {
-                        const option = document.createElement("option");
-                        option.value = machine.title;
-                        option.textContent = `${machine.title} - ${machine.max_rpm || "?"} RPM / ${machine.max_power || "?"} HP`;
-                        machineSelect.appendChild(option);
-                    });
-                })
-                .catch(error => {
-                    console.error('Failed to load machines:', error);
-                });
-    
-            toolForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-    
-                const material = document.getElementById('material').value;
-                const machineType = document.getElementById('machine_type').value;
-                const cadFile = document.getElementById('cad_file').files[0];
-    
-                if (!material || !machineType || !cadFile) {
-                    alert("Please fill out all fields and upload a CAD file.");
-                    return;
-                }
-    
-                const formData = new FormData();
-                formData.append("material", material);
-                formData.append("machine_type", machineType);
-                formData.append("cad_file", cadFile);
-    
-                try {
-                    const response = await fetch('http://localhost:8000/api/recommend-tool', {
-                        method: 'POST',
-                        body: formData // Automatically sets multipart/form-data
-                    });
-    
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-    
-                    const data = await response.json();
-    
-                    if (!data.recommendations || data.recommendations.length === 0) {
-                        recommendationDetails.innerHTML = `<p>No suitable tools found for this CAD file.</p>`;
-                    } else {
-                        recommendationDetails.innerHTML = data.recommendations.map(rec => {
-                            const tool = rec.selected_tool || {};
-                            return `
-                                <p><strong>Name:</strong> ${tool.name || 'undefined'}</p>
-                                <p><strong>Type:</strong> ${tool.type || 'undefined'}</p>
-                                <p><strong>Material:</strong> ${tool.material || 'undefined'}</p>
-                                <p><strong>Diameter:</strong> ${tool.diameter || 'undefined'}</p>
-                                <p><strong>Flutes:</strong> ${tool.flute_count || 'undefined'}</p>
-                                <p><strong>Coating:</strong> ${tool.coating || 'undefined'}</p>
-                                <p><strong>Center Cutting:</strong> ${tool.center_cutting || 'undefined'}</p>
-                                <p><strong>Manufacturer:</strong> ${tool.manufacturer || 'undefined'}</p>
-                                <a href="${tool.product_link || '#'}" target="_blank">Product Link</a>
-                                <hr />
-                            `;
-                        }).join('');
-
-                    }
-    
-                    resultDiv.style.display = 'block';
-    
-                } catch (error) {
-                    console.error('Error:', error);
-                    recommendationDetails.innerHTML = `
-                        <div style="color: red;">
-                            Error getting tool recommendation. Please try again.
-                        </div>
-                    `;
-                    resultDiv.style.display = 'block';
-                }
+    // Load materials
+    const materialSelect = document.getElementById('material');
+    fetch('http://localhost:8000/materials')
+        .then(response => response.json())
+        .then(materials => {
+            materials.forEach(material => {
+                const option = document.createElement("option");
+                option.value = material.name;
+                option.textContent = material.name;
+                materialSelect.appendChild(option);
             });
         });
-    </script>        
-</body>
-</html> 
+
+    // Load machines
+    const machineSelect = document.getElementById('machine_type');
+    fetch('http://localhost:8000/machines')
+        .then(response => response.json())
+        .then(machines => {
+            machines.forEach(machine => {
+                const option = document.createElement("option");
+                option.value = machine.title;
+                option.textContent = `${machine.title} - ${machine.max_rpm || "?"} RPM / ${machine.max_power || "?"} HP`;
+                machineSelect.appendChild(option);
+            });
+        });
+
+    // On form submit – show hardcoded features first
+    toolForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const cadFile = document.getElementById('cad_file').files[0];
+        if (!cadFile) return alert("Please upload a CAD file first.");
+        previewCADFeatures();
+    });
+
+    // Preview mocked features
+    function previewCADFeatures() {
+    const mockFeatures = [
+        { type: 'hole', diameter: 10, depth: 20 },
+        { type: 'pocket', diameter: 30, depth: 8 },
+        { type: 'slot', width: 5, length: 50, depth: 3 },
+        { type: 'chamfer', size: 1.5, angle: 45 },
+        { type: 'fillet', radius: 2 },
+        { type: 'threaded_hole', diameter: 6, depth: 12, thread_pitch: 1 }
+    ];
+
+    const html = mockFeatures.map(f => {
+        let extra = '';
+        switch (f.type) {
+            case 'hole':
+            case 'pocket':
+            case 'threaded_hole':
+                extra = `Diameter: ${f.diameter} mm | Depth: ${f.depth} mm`;
+                break;
+            case 'slot':
+                extra = `Width: ${f.width} mm | Length: ${f.length} mm | Depth: ${f.depth} mm`;
+                break;
+            case 'chamfer':
+                extra = `Size: ${f.size} mm | Angle: ${f.angle}°`;
+                break;
+            case 'fillet':
+                extra = `Radius: ${f.radius} mm`;
+                break;
+            default:
+                extra = 'Unknown feature details';
+        }
+
+        return `<li><strong>Type:</strong> ${f.type} | ${extra}</li>`;
+    }).join('');
+
+    featureList.innerHTML = `<ul>${html}</ul>`;
+    featurePreview.style.display = 'block';
+}
+
+
+    // Called when user clicks "Approve & Get Tool Recommendations"
+    window.submitToolRequest = async function() {
+        const material = document.getElementById('material').value;
+        const machineType = document.getElementById('machine_type').value;
+        const cadFile = document.getElementById('cad_file').files[0];
+
+        if (!material || !machineType || !cadFile) {
+            alert("Please fill out all fields and upload a CAD file.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("material", material);
+        formData.append("machine_type", machineType);
+        formData.append("cad_file", cadFile);
+
+        try {
+            const response = await fetch('http://localhost:8000/api/recommend-tool', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!data.recommendations || data.recommendations.length === 0) {
+                recommendationDetails.innerHTML = `<p>No suitable tools found.</p>`;
+            } else {
+                recommendationDetails.innerHTML = data.recommendations.map(rec => {
+                    const tool = rec.selected_tool || {};
+                    return `
+                        <p><strong>Name:</strong> ${tool.name || 'undefined'}</p>
+                        <p><strong>Type:</strong> ${tool.type || 'undefined'}</p>
+                        <p><strong>Material:</strong> ${tool.material || 'undefined'}</p>
+                        <p><strong>Diameter:</strong> ${tool.diameter || 'undefined'}</p>
+                        <p><strong>Flutes:</strong> ${tool.flute_count || 'undefined'}</p>
+                        <p><strong>Coating:</strong> ${tool.coating || 'undefined'}</p>
+                        <p><strong>Center Cutting:</strong> ${tool.center_cutting || 'undefined'}</p>
+                        <p><strong>Manufacturer:</strong> ${tool.manufacturer || 'undefined'}</p>
+                        <a href="${tool.product_link || '#'}" target="_blank">Product Link</a>
+                        <hr />
+                    `;
+                }).join('');
+            }
+
+            featurePreview.style.display = 'none';
+            resultDiv.style.display = 'block';
+
+        } catch (error) {
+            console.error('Error:', error);
+            recommendationDetails.innerHTML = `<p style="color:red;">Error getting recommendation.</p>`;
+            resultDiv.style.display = 'block';
+        }
+    };
+});
+</script>
