@@ -57,33 +57,75 @@ def process_cad_file(file_bytes) -> List[Dict]:
     print("🔍 Simulating CAD feature extraction...")
     return [
         {"feature": "pocket", "diameter": 12.0, "position": [10.0, 20.0]},
-        {"feature": "hole", "diameter": 2.0, "position": [30.5, 45.2]},
+        {"feature": "hole", "diameter": .25, "position": [30.5, 45.2]},
         {"feature": "slot", "diameter": 8.0, "position": [60.0, 10.0]},
     ]
 
+def classify_operation(tool):
+    t = tool.type.lower()
+    name = tool.name.lower()
 
-def filter_valid_tools(tools: List[Tool], material_class: str, max_rpm: int) -> List[Dict]:
+    if "drill" in t or "tap" in t:
+        return "drilling"
+    if tool.flute_count and tool.flute_count <= 3:
+        return "roughing"
+    if tool.flute_count and tool.flute_count >= 4:
+        return "finishing"
+    return "general"
+
+
+def filter_valid_tools(
+    tools: List[Tool],
+    material_class: str,
+    max_rpm: int,
+    features: List[Dict]
+) -> List[Dict]:
     """
-    Filters tools based on material compatibility and machine spindle limits.
+    Filters tools based on:
+    - Material compatibility
+    - Max RPM of machine
+    - Geometric compatibility with CAD features (diameter & depth)
 
     Args:
-        tools (List[Tool]): Raw SQLAlchemy Tool objects.
-        material_class (str): Normalized class like "aluminum", "steel", etc.
-        max_rpm (int): Max RPM allowed by machine.
+        tools (List[Tool]): List of Tool SQLAlchemy objects
+        material_class (str): Normalized material class (e.g., 'aluminum')
+        max_rpm (int): Max RPM of machine
+        features (List[Dict]): Extracted CAD features to match against
 
     Returns:
-        List[Dict]: Filtered tools as dictionaries.
+        List[Dict]: Filtered tools as dictionaries
     """
     valid_tools = []
+
     for tool in tools:
         try:
             supported_materials = json.loads(tool.workpiece_materials)
         except:
             supported_materials = []
 
-        if any(material_class in m.lower() for m in supported_materials):
-            print(f"🔍 Tool {tool.name} supports: {supported_materials}")
+        # 1. Material match
+        if not any(material_class in m.lower() for m in supported_materials):
+            continue
 
+        # 2. RPM check
+        if tool.max_rpm and tool.max_rpm < max_rpm:
+            continue
+
+        # 3. Geometry check: at least one feature must match
+        for feat in features:
+            feat_diam = feat.get("diameter")
+            feat_depth = feat.get("depth")
+
+            if feat_diam and tool.diameter and tool.diameter > feat_diam:
+                print(f"❌ Tool {tool.name} rejected: diameter {tool.diameter} > feature {feat_diam}")
+                continue  # tool too big
+
+            if feat_depth and tool.max_depth_of_cut and tool.max_depth_of_cut < feat_depth:
+                continue  # not deep enough
+
+            operation_type = classify_operation(tool)
+
+            # If passed all checks, we accept this tool
             valid_tools.append({
                 "tool_id": tool.tool_id,
                 "name": tool.name,
@@ -104,7 +146,10 @@ def filter_valid_tools(tools: List[Tool], material_class: str, max_rpm: int) -> 
                 "speed_feed_link": tool.speed_feed_link,
                 "product_link": tool.product_link,
                 "image_link": tool.image_link,
+                "operation_type": operation_type
             })
+
+            break  # ✅ stop after first compatible feature
 
     return valid_tools
 
@@ -152,9 +197,7 @@ def recommend_from_cad(cad_bytes: bytes, material: str, machine_type: str, db) -
     # 2. Get material info
     mat = db.query(Material).filter(Material.name.ilike(material)).first()
     material_hardness = mat.hardness if mat else 1.0
-    print(f"🔎 Looking for material: '{material}'")
-    print(f"📦 Found material object: {mat}")
-
+ 
     # 3. Get machine spindle info
     machine = db.query(Machine).filter(Machine.title.ilike(machine_type)).first()
     spindle_data = {}
@@ -164,15 +207,16 @@ def recommend_from_cad(cad_bytes: bytes, material: str, machine_type: str, db) -
         max_rpm_str = spindle_data.get("Max Speed", "")
         if isinstance(max_rpm_str, str) and "rpm" in max_rpm_str:
             max_rpm = int(max_rpm_str.replace("rpm", "").strip())
-    print(f"🛠 Looking for machine type: '{machine_type}'")
-    print(f"📦 Found machine object: {machine}")
-    print(f"🔧 Extracted spindle JSON: {spindle_data}")
-    print(f"⚙️ Max RPM used: {max_rpm}")
-
+    
     # 4. Filter valid tools
     all_tools = db.query(Tool).all() # Get all tools from DB
     material_class = ALLOY_TO_CLASS.get(material, material).lower() # Map 'Aluminium 2017A' to 'Aluminium'
-    valid_tools = filter_valid_tools(all_tools, material_class, max_rpm)
+    valid_tools = filter_valid_tools(tools=all_tools, material_class=material_class, max_rpm=max_rpm, features=features)
+
+    # 🧾 Debug: Show how many tools passed filtering
+    print(f"🔧 Valid tools after filtering: {len(valid_tools)}")
+    for tool in valid_tools:
+        print(f"✅ {tool['name']} | Ø {tool['diameter']} mm | Max DoC: {tool['max_depth_of_cut']} mm | RPM: {tool['max_rpm']}")  
 
     # 5. LLM-style planning to match tools to features
     selected_toolpaths = plan_tool_strategy(

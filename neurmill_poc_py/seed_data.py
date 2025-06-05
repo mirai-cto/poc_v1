@@ -4,10 +4,30 @@ from database import SessionLocal # importing a sesson factory
 from models import Machine
 import models
 import ast
+import re
 
 # tool = Tool(...)  # Create tool objects
 # db.add(tool)      # Add them to session
 # db.commit()       # Write to DB
+
+def parse_diameter(raw_val, name):
+    """
+    Normalize the diameter:
+    - If the tool name has `"`, it's an inch-based size → already normalized to mm.
+    - If not, it's mm but was accidentally multiplied by 25.4 → divide by 25.4.
+
+    Returns:
+        float: Normalized diameter in mm.
+    """
+    try:
+        val = float(str(raw_val).replace('"', '').replace('mm', '').strip())
+    except:
+        return 0.0
+
+    if '"' in name:
+        return val  # already normalized
+    else:
+        return val / 25.4  # fix mm-to-mm error
 
 
 def safe_eval(field_val, field_name, title):
@@ -23,35 +43,47 @@ def safe_eval(field_val, field_name, title):
 def load_tools(csv_path):
     db = SessionLocal()
     df = pd.read_csv(csv_path)
+
+    # 💥 Optional: clear existing tools to avoid duplicates
+    db.query(models.Tool).delete()
+
     for _, row in df.iterrows():
-        # Some fields might be empty; use safe parsing
+        # Clean diameter values
+        diameter=parse_diameter(row.get('diameter', 0.0), row.get('name', ''))
+        shank_diameter = parse_diameter(row.get('shank_diameter', 0.0), row.get('name', ''))
+        cutting_length = parse_diameter(row.get('cutting_length', 0.0), row.get('name', ''))
+        overall_length = parse_diameter(row.get('overall_length', 0.0), row.get('name', ''))
+        max_depth_of_cut = parse_diameter(row.get('max_depth_of_cut', 0.0), row.get('name', ''))
+
         tool = models.Tool(
             name=row.get('name'),
             type=row.get('type'),
-            diameter=row.get('diameter', 0.0),
-            shank_diameter=row.get('shank_diameter', 0.0),
+            diameter=diameter,
+            shank_diameter=shank_diameter,
             flute_count=row.get('flute_count', 0),
             material=row.get('material'),
             coating=row.get('coating'),
             max_speed=row.get('max_speed', 0.0),
             max_feed=row.get('max_feed', 0.0),
-            cutting_length=row.get('cutting_length', 0.0),
-            overall_length=row.get('overall_length', 0.0),
+            cutting_length=cutting_length,
+            overall_length=overall_length,
             helix_angle=row.get('helix_angle', 0.0),
             workpiece_materials=json.dumps(ast.literal_eval(row.get('workpiece_materials', '[]'))),
             center_cutting=row.get('center_cutting'),
             price_usd=row.get('price_usd', 0.0),
             manufacturer=row.get('manufacturer'),
-            max_depth_of_cut=row.get('max_depth_of_cut', 0.0),
+            max_depth_of_cut=max_depth_of_cut,
             max_rpm=row.get('max_rpm', 0.0),
             speed_feed_link=row.get('speed_feed_link'),
             product_link=row.get('product_link'),
             image_link=row.get('image_link')
         )
         db.add(tool)
+
     db.commit()
     db.close()
     print("✅ Tools loaded successfully.")
+
 
 #  Load CNC machine data (like specs and configs) into the Machine table
 def load_machines(csv_path):
@@ -151,6 +183,7 @@ def load_operations(csv_path):
     db.close()
     print("✅ Operations loaded successfully.")
 
+# change this to where your csv's are located
 if __name__ == "__main__":
     load_tools("/Users/nkhormaei/Projects/poc_v1/end_mills_cleaned.csv")
     load_machines("/Users/nkhormaei/Projects/poc_v1/vf-series-ds.csv")

@@ -77,7 +77,7 @@ async def get_machines(db: Session = Depends(get_db)):
             print(f"❌ Failed to parse spindle_json for {m.title}: {e}")
             spindle_data = {}
 
-        print("Parsed spindle_json for", m.title, "→", spindle_data)
+        # DEBUG: print("Parsed spindle_json for", m.title, "→", spindle_data)
 
         results.append({
             "id": m.id,
@@ -105,7 +105,6 @@ async def get_materials(db: Session = Depends(get_db)):
         }
         for m in materials
     ]
-    print("✔ Materials fetched:", result) # print statement for debugging
     return result
 
 @app.get("/tools", response_model=List[dict])
@@ -137,8 +136,7 @@ async def get_tool_recommendations(
     """
     try:
         cad_bytes = await cad_file.read()
-        print("📩 Received CAD file for tool recommendation")
-
+        
         # Use the core recommender class
         tr = ToolRecommender(db)
         
@@ -179,26 +177,26 @@ async def get_speeds_feeds(
 async def upload_cad(file: UploadFile = File(...)):
     """
     Handles CAD file uploads, processes them to extract machining features,
-    and returns recommendations based on the extracted features.
+    and returns a list of detected features.
     """
     try:
-        # Create uploads directory if it doesn't exist
-        os.makedirs("uploads", exist_ok=True)
-        
-        # Save the uploaded file
-        file_path = f"uploads/{file.filename}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        # Process the CAD file
-        features = process_cad_file(file_path)
-        
-        # Clean up the uploaded file
-        os.remove(file_path)
-        
-        return {"features": features}
+        file_bytes = await file.read()  # Read uploaded file into memory
+        raw_features = process_cad_file(file_bytes)
+
+        # Normalize to ensure frontend gets type/diameter/depth even if dummy function doesn't return it
+        normalized = []
+        for f in raw_features:
+            normalized.append({
+                "type": f.get("feature", "unknown"),
+                "diameter": f.get("diameter", None),
+                "depth": f.get("depth", None),  # default to None if not provided
+                "position": f.get("position", None)
+            })
+
+        return {"features": normalized}
     except Exception as e:
-        raise HTTPEx
+        print(f"❌ Error in /upload_cad: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process CAD file")
     
 
 

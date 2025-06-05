@@ -46,7 +46,7 @@ pip install -r requirements.txt
 python seed_data.py
 ```
 
-This creates `neuralmill.db` from `tools.csv` and `machines.csv`.
+This creates `neuralmill.db` from `tools.csv`, `machines.csv` and `materials.csv`.
 
 ### 3. Set OpenAI API Key
 
