@@ -5,15 +5,16 @@ This is a full-stack application that helps CNC machinists select appropriate to
 ## Project Structure
 
 ```
-neurmill_poc_py/
+AutoTooler/
 ├── main.py               # FastAPI backend API server
 ├── models.py             # SQLAlchemy ORM definitions
 ├── database.py           # SQLite DB config
 ├── seed_data.py          # Seeds tool & machine data
 ├── llm_tool_planner.py   # GPT-4-based tool selection logic
-├── dummy_ai.py           # Rule-based fallback recommender
+├── dummy_ai.py           # Rule-based fallback recommender, process cad files for features, tool geometric filter
 ├── frontend/
 │   └── index.html        # SPA for feature preview + output
+├── tool_recommender      #Tool recommendation engine for the CNC Tool Recommender system. Calculating optimal cutting parameters (speeds and feeds)
 └── requirements.txt      # Python dependencies
 ```
 
@@ -57,7 +58,7 @@ export OPENAI_API_KEY=sk-your-key-here  # Or use a .env file
 ### 4. Run the Server
 
 ```bash
-python main.py
+x
 ```
 
 ### 5. Open the Frontend

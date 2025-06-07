@@ -17,6 +17,7 @@ import logging
 from tool_recommender import ToolRecommender
 import ast
 import models
+import uvicorn
 
 # Import local modules
 from models import Base, Machine, Material, Tool
@@ -202,5 +203,4 @@ async def upload_cad(file: UploadFile = File(...)):
 
 # Run the application
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

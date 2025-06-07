@@ -185,6 +185,10 @@ def load_operations(csv_path):
 
 # change this to where your csv's are located
 if __name__ == "__main__":
-    load_tools("/Users/nkhormaei/Projects/poc_v1/end_mills_cleaned.csv")
-    load_machines("/Users/nkhormaei/Projects/poc_v1/vf-series-ds.csv")
-    load_materials("/Users/nkhormaei/Projects/poc_v1/all_materials_cleaned.csv")
+    # load_tools("/Users/nkhormaei/Projects/poc_v1/end_mills_cleaned.csv")
+    # load_machines("/Users/nkhormaei/Projects/poc_v1/vf-series-ds.csv")
+    # load_materials("/Users/nkhormaei/Projects/poc_v1/all_materials_cleaned.csv")
+
+    load_tools("/Users/nmitra28/Desktop/Neuramill/Code/poc_v1/datasets/end_mills_cleaned.csv")
+    load_machines("/Users/nmitra28/Desktop/Neuramill/Code/poc_v1/datasets/vf-series-ds.csv")
+    load_materials("/Users/nmitra28/Desktop/Neuramill/Code/poc_v1/datasets/all_materials_cleaned.csv")

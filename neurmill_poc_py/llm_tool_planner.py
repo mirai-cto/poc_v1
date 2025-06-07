@@ -1,10 +1,8 @@
 import os
 import json
 from typing import List, Dict
-from openai import OpenAI
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
+import openai
+openai.api_key = os.getenv("OPENAI_API_KEY")
 def plan_tool_strategy(valid_tools: List[Dict], features: List[Dict], material: str, machine: Dict) -> List[Dict]:
     """
     Uses OpenAI LLM to select tools based on CAD features, material, and machine.
@@ -45,7 +43,7 @@ Only return valid JSON list of objects. No extra explanation.
     """
 
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3
