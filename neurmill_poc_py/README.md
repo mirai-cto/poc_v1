@@ -5,14 +5,17 @@ This is a full-stack application that helps CNC machinists select appropriate to
 ## Project Structure
 
 ```
-neurmill_poc_py/
-├── main.py            # FastAPI backend server and API endpoints
-├── models.py          # SQLAlchemy database models
-├── database.py        # Database connection configuration
-├── dummy_ai.py        # Tool recommendation and speed/feed calculation logic
-├── frontend/          # Frontend files
-│   └── index.html     # Single-page application with embedded CSS/JS
-└── requirements.txt   # Python dependencies
+AutoTooler/
+├── main.py               # FastAPI backend API server
+├── models.py             # SQLAlchemy ORM definitions
+├── database.py           # SQLite DB config
+├── seed_data.py          # Seeds tool & machine data
+├── llm_tool_planner.py   # GPT-4-based tool selection logic
+├── dummy_ai.py           # Rule-based fallback recommender, process cad files for features, tool geometric filter
+├── frontend/
+│   └── index.html        # SPA for feature preview + output
+├── tool_recommender      #Tool recommendation engine for the CNC Tool Recommender system. Calculating optimal cutting parameters (speeds and feeds)
+└── requirements.txt      # Python dependencies
 ```
 
 ## Technology Stack
@@ -28,93 +31,90 @@ neurmill_poc_py/
 - **Bootstrap**: CSS framework for responsive design
 - **Fetch API**: For making HTTP requests to the backend
 
-## Seed DB
-Seeding the Database
+## 🧪 Setup & Usage
 
-First, load your tools.csv and machines.csv into the database:
-```bash
-   python seed_data.py
-```
-It will create a file neuralmill.db in your project directory with your seeded tools and machines.
+### 1. Virtual Environment
 
-## Setup Instructions
-
-1. Create and activate a virtual environment:
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-2. Install dependencies:
-```bash
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Start the backend server:
+### 2. Seed the Database
+
 ```bash
-python main.py
+python seed_data.py
 ```
 
-4. Open the frontend:
-- Open `frontend/index.html` directly in your browser
+This creates `neuralmill.db` from `tools.csv`, `machines.csv` and `materials.csv`.
+
+### 3. Set OpenAI API Key
+
+```bash
+export OPENAI_API_KEY=sk-your-key-here  # Or use a .env file
+```
+
+### 4. Run the Server
+
+```bash
+x
+```
+
+### 5. Open the Frontend
+
+- Open `frontend/index.html` in your browser.
 - Or access through the server at `http://localhost:8000`
 
 ## Application Flow
 
-1. **User Interface** (`frontend/index.html`):
-   - Provides a form for selecting material, operation type, and feature type
-   - Displays tool recommendations and cutting parameters
-   - Handles user interactions and API calls
+### Step 1 – User Interaction
 
-2. **Backend API** (`main.py`):
-   - `/machines`: Get list of available CNC machines
-   - `/materials`: Get list of supported materials
-   - `/tools`: Get list of available cutting tools
-   - `/upload_cad`: Process CAD files to extract features
-   - `/recommend_tools`: Get tool recommendations based on parameters
-   - `/calculate_speeds_feeds`: Calculate optimal cutting parameters
+- User selects Material and Machine
+- Uploads CAD file (only triggers the flow)
+- System shows mocked CAD features for approval
+- User clicks **Approve & Get Tools**
+- Recommendations are shown with reasoning
 
-3. **Database Layer** (`models.py`, `database.py`):
-   - Defines data models for machines, materials, and tools
-   - Handles database connections and sessions
-   - Provides CRUD operations for data management
+### Step 2 – Backend API
 
-4. **Business Logic** (`dummy_ai.py`):
-   - Implements tool recommendation algorithms
-   - Calculates speed and feed rates
-   - Processes CAD files to extract machining features
+| Endpoint                | Description                        |
+|------------------------|------------------------------------|
+| `/materials`           | Returns materials from DB          |
+| `/machines`            | Returns machines from DB           |
+| `/api/recommend-tool`  | Triggers LLM-based recommendation  |
 
-## Key Features
+### Step 3 – Tool Planning Logic (`llm_tool_planner.py`)
 
-1. **Tool Recommendation**:
-   - Recommends appropriate cutting tools based on:
-     - Material properties
-     - Machine capabilities
-     - Feature types (pockets, holes, slots)
-     - Operation type (roughing, finishing)
+- Takes top 10 tools, features, material, and machine specs
+- Calls GPT-4 to select tools for each feature
+- Returns structured JSON for the frontend
 
-2. **Cutting Parameter Calculation**:
-   - Calculates optimal:
-     - Spindle speed (RPM)
-     - Feed rate (IPM)
-     - Depth of cut
-     - Stepover
+---
 
-3. **CAD File Processing**:
-   - Extracts machining features from CAD files
-   - Identifies required tool types and sizes
-   - Suggests machining strategies
+## Features
 
-## Development Notes
+- Material & machine selection
+- Hardcoded CAD feature preview (simulated)
+- GPT-4 selects tools with reasoning
+- Frontend displays formatted results
+- Handles missing data gracefully
 
-- The application uses a SQLite database for simplicity
-- Frontend is a single-page application for easy deployment
-- API endpoints follow RESTful conventions
-- Error handling and logging are implemented throughout
+---
 
-## Learning Resources
+## Future Plans
 
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [SQLAlchemy Documentation](https://docs.sqlalchemy.org/)
-- [Bootstrap Documentation](https://getbootstrap.com/docs/5.1/getting-started/introduction/)
-- [JavaScript Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) 
+- Real CAD parsing (STEP/STL)
+- Speed & feed calculations
+- Project save/history feature
+- User login system
+- Integration with CAM software
+
+---
+
+## References
+
+- [FastAPI Docs](https://fastapi.tiangolo.com/)
+- [SQLAlchemy Docs](https://docs.sqlalchemy.org/)
+- [OpenAI Python API](https://platform.openai.com/docs/)
+- [MDN Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)

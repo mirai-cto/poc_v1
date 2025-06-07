@@ -3,20 +3,31 @@ Main FastAPI application file that serves as the entry point for the CNC Tool Re
 This file sets up the backend server, defines API endpoints, and handles the communication between
 the frontend and the business logic layer.
 """
-from fastapi import FastAPI, Depends, UploadFile, File, Query, Body, HTTPException
+from fastapi import FastAPI, Depends, UploadFile, File, Query, Body, HTTPException, APIRouter, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from pydantic import BaseModel
 import os
 import shutil
 import json
+import logging
+from tool_recommender import ToolRecommender
+import ast
+import models
+import uvicorn
 
 # Import local modules
 from models import Base, Machine, Material, Tool
 from database import engine, get_db
-from dummy_ai import recommend_tool, calculate_speed_feed, process_cad_file
+from dummy_ai import recommend_from_cad, calculate_speed_feed, process_cad_file
+
+class ToolRequest(BaseModel):
+    material: str
+    machine_type: str
+    machine_id: Optional[int] = None
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -49,15 +60,36 @@ async def read_root():
     """
     return FileResponse('frontend/index.html')
 
-# API Endpoints for data retrieval
 @app.get("/machines", response_model=List[dict])
 async def get_machines(db: Session = Depends(get_db)):
     """
-    Returns a list of all available CNC machines from the database.
-    Each machine entry includes its capabilities and specifications.
+    Returns a list of all available CNC machines from the database,
+    including parsed spindle specs (max RPM and power).
     """
     machines = db.query(Machine).all()
-    return [{"id": m.id, "name": m.name, "max_rpm": m.max_rpm, "max_power": m.max_power} for m in machines]
+    results = []
+    for m in machines:
+        try:
+            # Try both json.loads and ast.literal_eval for fallback
+            spindle_data = json.loads(m.spindle_json)
+            if isinstance(spindle_data, str):
+                spindle_data = ast.literal_eval(spindle_data)
+        except Exception as e:
+            print(f"❌ Failed to parse spindle_json for {m.title}: {e}")
+            spindle_data = {}
+
+        # DEBUG: print("Parsed spindle_json for", m.title, "→", spindle_data)
+
+        results.append({
+            "id": m.id,
+            "title": m.title,
+            "description": m.description,
+            "product_link": m.product_link,
+            "max_rpm": spindle_data.get("Max Speed", "").replace(" rpm", ""),
+            "max_power": spindle_data.get("Max Rating", "")
+        })
+    return results
+
 
 @app.get("/materials", response_model=List[dict])
 async def get_materials(db: Session = Depends(get_db)):
@@ -66,7 +98,15 @@ async def get_materials(db: Session = Depends(get_db)):
     Each material entry includes its properties relevant to machining.
     """
     materials = db.query(Material).all()
-    return [{"id": m.id, "name": m.name, "hardness": m.hardness, "category": m.category} for m in materials]
+    result = [
+        {
+            "name": m.name,
+            "hardness": m.hardness,
+            "yield_strength": m.yield_strength
+        }
+        for m in materials
+    ]
+    return result
 
 @app.get("/tools", response_model=List[dict])
 async def get_tools(db: Session = Depends(get_db)):
@@ -74,27 +114,46 @@ async def get_tools(db: Session = Depends(get_db)):
     Returns a list of all available cutting tools from the database.
     Each tool entry includes its specifications and capabilities.
     """
-    tools = db.query(Tool).all()
+    tools = db.query(Tool).all() # Query all rows from the tools table
     return [{"id": t.id, "name": t.name, "diameter": t.diameter, "type": t.type} for t in tools]
 
-# API Endpoints for tool recommendation and parameter calculation
-@app.post("/recommend_tools")
+@app.post("/api/preview-features")
+async def preview_features(file: UploadFile = File(...)):
+    cad_bytes = await file.read()
+    features = process_cad_file(cad_bytes)
+    return {"features": features}
+
+
+@app.post("/api/recommend-tool")
 async def get_tool_recommendations(
-    material_id: int,
-    operation_type: str,
-    feature_type: str,
-    machine_id: Optional[int] = None,
+    material: str = Form(...),
+    machine_type: str = Form(...),
+    cad_file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     """
-    Recommends appropriate cutting tools based on material, operation type, and feature type.
-    Optionally considers machine capabilities if machine_id is provided.
+    Recommends appropriate cutting tools based on uploaded CAD file,
+    selected material, and machine type.
     """
     try:
-        recommendations = recommend_tools(material_id, operation_type, feature_type, machine_id, db)
+        cad_bytes = await cad_file.read()
+        
+        # Use the core recommender class
+        tr = ToolRecommender(db)
+        
+        recommendations = tr.recommend_tools(
+            cad_bytes=cad_bytes,
+            material=material,
+            machine_type=machine_type
+        )
+
+        print("✅ Tool recommendations generated")
         return {"recommendations": recommendations}
+
     except Exception as e:
+        print(f"❌ Recommendation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.post("/calculate_speeds_feeds")
 async def get_speeds_feeds(
@@ -119,28 +178,29 @@ async def get_speeds_feeds(
 async def upload_cad(file: UploadFile = File(...)):
     """
     Handles CAD file uploads, processes them to extract machining features,
-    and returns recommendations based on the extracted features.
+    and returns a list of detected features.
     """
     try:
-        # Create uploads directory if it doesn't exist
-        os.makedirs("uploads", exist_ok=True)
-        
-        # Save the uploaded file
-        file_path = f"uploads/{file.filename}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        # Process the CAD file
-        features = process_cad_file(file_path)
-        
-        # Clean up the uploaded file
-        os.remove(file_path)
-        
-        return {"features": features}
+        file_bytes = await file.read()  # Read uploaded file into memory
+        raw_features = process_cad_file(file_bytes)
+
+        # Normalize to ensure frontend gets type/diameter/depth even if dummy function doesn't return it
+        normalized = []
+        for f in raw_features:
+            normalized.append({
+                "type": f.get("feature", "unknown"),
+                "diameter": f.get("diameter", None),
+                "depth": f.get("depth", None),  # default to None if not provided
+                "position": f.get("position", None)
+            })
+
+        return {"features": normalized}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        print(f"❌ Error in /upload_cad: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process CAD file")
+    
+
 
 # Run the application
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

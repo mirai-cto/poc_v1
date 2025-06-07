@@ -10,6 +10,7 @@ from ast import List
 from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from database import engine, Base
 
 # Create base class for declarative models
 Base = declarative_base()
@@ -22,6 +23,7 @@ class Tool(Base):
     __tablename__ = "tools"
 
     tool_id = Column(Integer, primary_key=True, index=True)
+    #material_id = Column(Integer)
     name = Column(String, index=True)
     type = Column(String)
     diameter = Column(Float)
@@ -76,9 +78,16 @@ class Material(Base):
     __tablename__ = "materials"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
+    name = Column(String, unique=True)
     hardness = Column(Float)
-    machinability = Column(Float)
+    machinability = Column(Float)  # placeholder
+    yield_strength = Column(String)
+    tensile_strength = Column(String)
+    elongation = Column(String)
+    modulus_elasticity = Column(String)
+    tensile_modulus = Column(String)
+    flexural_strength = Column(String)
+    flexural_modulus = Column(String)
 
 class Operation(Base):
     __tablename__ = "operations"
@@ -88,3 +97,10 @@ class Operation(Base):
     description = Column(String)
     recommended_speed = Column(Float)
     recommended_feed = Column(Float) 
+
+
+Base.metadata.create_all(bind=engine)
+
+if __name__ == "__main__":
+    Base.metadata.create_all(bind=engine)
+    print("✅ Tables created.")
