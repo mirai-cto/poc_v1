@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAD Viewer</title>
+    <style>
+        body, html {
+            min-height: 100vh;
+            height: auto;
+            overflow-y: auto;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .main-content {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+            height: auto;
+        }
+        .viewer-section {
+            flex: 2;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .viewer-container {
+            height: 500px;
+            min-height: 500px;
+            max-height: 500px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .analysis-section {
+            min-width: 300px;
+            max-width: 400px;
+            overflow-y: auto;
+            max-height: 700px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .upload-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        #viewer {
+            width: 100%;
+            height: 100%;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            display: none;
+        }
+        .error {
+            color: #d32f2f;
+            margin-top: 10px;
+            display: none;
+        }
+        .success {
+            color: #388e3c;
+            margin-top: 10px;
+            display: none;
+        }
+        .file-input {
+            display: none;
+        }
+        .upload-btn {
+            background: #2196f3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .upload-btn:hover {
+            background: #1976d2;
+        }
+        .upload-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .feature-list {
+            margin-top: 20px;
+        }
+        .feature-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #2196f3;
+        }
+        .feature-type {
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 5px;
+        }
+        .feature-details {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .feature-coords {
+            margin-top: 5px;
+            font-family: monospace;
+            color: #444;
+        }
+        .dimensions {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 4px;
+        }
+        .dimension-item {
+            margin-bottom: 10px;
+        }
+        .dimension-label {
+            font-weight: bold;
+            color: #1565c0;
+        }
+        .machinist-notes {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3e0;
+            border-radius: 4px;
+        }
+        .notes-title {
+            font-weight: bold;
+            color: #e65100;
+            margin-bottom: 10px;
+        }
+        .manufacturing-analysis {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 4px;
+        }
+        
+        .manufacturing-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f1f8e9;
+            border-radius: 4px;
+        }
+        
+        .manufacturing-label {
+            font-weight: bold;
+            color: #2e7d32;
+            margin-bottom: 5px;
+        }
+        
+        .manufacturing-value {
+            color: #1b5e20;
+        }
+        
+        .warning {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        
+        .surface-analysis {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9fbe7;
+            border-radius: 4px;
+        }
+        
+        .tolerance-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8eaf6;
+            border-radius: 4px;
+        }
+        .feature-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .feature-card .type {
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        
+        .feature-card .details {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .feature-card .confidence {
+            margin-top: 8px;
+            padding: 4px 8px;
+            background: #e3f2fd;
+            border-radius: 4px;
+            display: inline-block;
+            font-size: 0.9em;
+            color: #1565c0;
+        }
+        
+        .feature-card .manufacturing-notes {
+            margin-top: 8px;
+            padding: 8px;
+            background: #fff3e0;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #e65100;
+        }
+        .feature-classification {
+            margin-bottom: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: 350px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>CAD Viewer & Analysis</h1>
+        </div>
+        
+        <div class="upload-section">
+            <input type="file" id="fileInput" class="file-input" accept=".step,.stp">
+            <button id="uploadBtn" class="upload-btn">Choose STEP File</button>
+            <button id="classifyBtn" class="upload-btn" style="margin-left: 10px; background: #4CAF50;" disabled>Classify Features</button>
+            <div id="error" class="error"></div>
+            <div id="success" class="success"></div>
+        </div>
+
+        <!-- Feature Classification Results -->
+        <div class="feature-classification">
+            <h3 style="margin-top: 0; color: #1976d2;">Feature Classification Results</h3>
+            <div id="classification-content" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;"></div>
+        </div>
+
+        <div class="main-content">
+            <div class="viewer-section">
+                <div class="viewer-container">
+                    <div id="viewer"></div>
+                    <div id="loading" class="loading">Loading model...</div>
+                </div>
+            </div>
+            
+            <div class="analysis-section">
+                <div id="analysis-content">
+                    <div class="dimensions">
+                        <h3>Model Dimensions</h3>
+                        <div id="dimensions-content"></div>
+                    </div>
+                    
+                    <div class="manufacturing-analysis">
+                        <h3>Manufacturing Analysis</h3>
+                        <div id="manufacturing-content"></div>
+                    </div>
+                    
+                    <div class="feature-list">
+                        <h3>Detected Features</h3>
+                        <div id="features-content"></div>
+                    </div>
+                    
+                    <div class="machinist-notes">
+                        <h3 class="notes-title">Manufacturing Notes</h3>
+                        <div id="machinist-notes-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js and dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+
+    <script>
+        // Initialize Three.js scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#e3f2fd');
+
+        // Camera setup
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        // Renderer setup
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const viewerContainer = document.getElementById('viewer');
+        const updateSize = () => {
+            const width = viewerContainer.clientWidth;
+            const height = viewerContainer.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        };
+        updateSize();
+        viewerContainer.appendChild(renderer.domElement);
+
+        // Controls setup
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        directionalLight.position.set(2, 2, 2);
+        scene.add(directionalLight);
+        const fillLight = new THREE.DirectionalLight(0x90caf9, 0.5);
+        fillLight.position.set(-2, 2, 2);
+        scene.add(fillLight);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            updateSize();
+        });
+
+        // File upload handling
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const success = document.getElementById('success');
+
+        function displayAnalysis(data) {
+            // Display dimensions
+            const dimensionsContent = document.getElementById('dimensions-content');
+            dimensionsContent.innerHTML = `
+                <div class="dimension-item">
+                    <span class="dimension-label">X:</span> ${data.bounding_box.x.toFixed(2)} mm
+                </div>
+                <div class="dimension-item">
+                    <span class="dimension-label">Y:</span> ${data.bounding_box.y.toFixed(2)} mm
+                </div>
+                <div class="dimension-item">
+                    <span class="dimension-label">Z:</span> ${data.bounding_box.z.toFixed(2)} mm
+                </div>
+            `;
+
+            // Display manufacturing analysis
+            const manufacturingContent = document.getElementById('manufacturing-content');
+            const manufacturing = data.analysis.manufacturing;
+            
+            manufacturingContent.innerHTML = `
+                <div class="manufacturing-item">
+                    <div class="manufacturing-label">Wall Thickness</div>
+                    <div class="manufacturing-value">
+                        Min: ${manufacturing.wall_thickness.min.toFixed(2)} mm<br>
+                        Avg: ${manufacturing.wall_thickness.avg.toFixed(2)} mm<br>
+                        Max: ${manufacturing.wall_thickness.max.toFixed(2)} mm
+                    </div>
+                </div>
+                
+                <div class="manufacturing-item">
+                    <div class="manufacturing-label">Surface Analysis</div>
+                    <div class="surface-analysis">
+                        Planar Surfaces: ${manufacturing.surface_finish.planar_surfaces}<br>
+                        Cylindrical Surfaces: ${manufacturing.surface_finish.cylindrical_surfaces}<br>
+                        Complex Surfaces: ${manufacturing.surface_finish.complex_surfaces}<br>
+                        Recommended Finish: ${manufacturing.surface_finish.surface_roughness_estimate}
+                    </div>
+                </div>
+                
+                <div class="manufacturing-item">
+                    <div class="manufacturing-label">Material Information</div>
+                    <div class="manufacturing-value">
+                        Volume: ${(manufacturing.material_volume / 1000).toFixed(2)} cm³<br>
+                        Surface Area: ${(manufacturing.surface_area / 100).toFixed(2)} cm²
+                    </div>
+                </div>
+                
+                <div class="manufacturing-item">
+                    <div class="manufacturing-label">Tolerance Analysis</div>
+                    <div class="tolerance-info">
+                        ${manufacturing.tolerances.hole_fits.map(hole => `
+                            <div>${hole.diameter}mm hole - ${hole.recommended_tolerance}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Display features
+            const featuresContent = document.getElementById('features-content');
+            featuresContent.innerHTML = data.features.map(feature => `
+                <div class="feature-item">
+                    <div class="feature-type">${feature.type}</div>
+                    <div class="feature-details">
+                        ${feature.details}<br>
+                        ${feature.diameter ? `Diameter: ${feature.diameter.toFixed(2)}mm<br>` : ''}
+                        ${feature.angle ? `Angle: ${feature.angle.toFixed(1)}°<br>` : ''}
+                        ${feature.surface_area ? `Surface Area: ${(feature.surface_area / 100).toFixed(2)}cm²<br>` : ''}
+                        ${feature.recommended_tolerance ? `Recommended Tolerance: ${feature.recommended_tolerance}<br>` : ''}
+                    </div>
+                    <div class="feature-coords">
+                        X: ${feature.x.toFixed(2)} Y: ${feature.y.toFixed(2)} Z: ${feature.z.toFixed(2)}
+                    </div>
+                </div>
+            `).join('');
+
+            // Display manufacturing notes
+            const machinistNotesContent = document.getElementById('machinist-notes-content');
+            machinistNotesContent.innerHTML = manufacturing.manufacturing_notes.map(note => `
+                <div class="note-item ${note.includes('Warning') ? 'warning' : ''}">${note}</div>
+            `).join('');
+        }
+
+        uploadBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Reset UI
+            error.style.display = 'none';
+            success.style.display = 'none';
+            loading.style.display = 'block';
+            uploadBtn.disabled = true;
+
+            // Clear existing model
+            scene.children.forEach(child => {
+                if (child instanceof THREE.Mesh) {
+                    scene.remove(child);
+                }
+            });
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to process file');
+                }
+
+                // Update analysis panel
+                displayAnalysis(data);
+
+                // Load STL file
+                const loader = new THREE.STLLoader();
+                const geometry = await loader.loadAsync(data.mesh_url);
+                
+                const material = new THREE.MeshPhongMaterial({
+                    color: 0x1976d2,
+                    specular: 0x90caf9,
+                    shininess: 60
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                
+                // Center and scale the model
+                geometry.computeBoundingBox();
+                const box = geometry.boundingBox;
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 2 / maxDim;
+                mesh.scale.set(scale, scale, scale);
+                
+                mesh.position.sub(center.multiplyScalar(scale));
+                
+                scene.add(mesh);
+                
+                // Adjust camera
+                camera.position.set(2, 2, 2);
+                camera.lookAt(0, 0, 0);
+                controls.update();
+
+                success.textContent = 'Model loaded successfully';
+                success.style.display = 'block';
+                classifyBtn.disabled = false;
+            } catch (err) {
+                console.error('Error:', err);
+                error.textContent = err.message;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+                uploadBtn.disabled = false;
+            }
+        });
+
+        function displayClassificationResults(features) {
+            const container = document.getElementById('classification-content');
+            container.innerHTML = '';
+            
+            features.forEach(feature => {
+                const card = document.createElement('div');
+                card.className = 'feature-card';
+                
+                // Create feature type header
+                const typeDiv = document.createElement('div');
+                typeDiv.className = 'type';
+                typeDiv.textContent = feature.type.charAt(0).toUpperCase() + feature.type.slice(1);
+                card.appendChild(typeDiv);
+                
+                // Create details section
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'details';
+                
+                // Add dimensions based on feature type
+                if (feature.diameter) {
+                    detailsDiv.innerHTML += `Diameter: ${feature.diameter.toFixed(2)}mm<br>`;
+                }
+                if (feature.depth) {
+                    detailsDiv.innerHTML += `Depth: ${feature.depth.toFixed(2)}mm<br>`;
+                }
+                if (feature.height) {
+                    detailsDiv.innerHTML += `Height: ${feature.height.toFixed(2)}mm<br>`;
+                }
+                if (feature.radius) {
+                    detailsDiv.innerHTML += `Radius: ${feature.radius.toFixed(2)}mm<br>`;
+                }
+                if (feature.angle) {
+                    detailsDiv.innerHTML += `Angle: ${feature.angle.toFixed(1)}°<br>`;
+                }
+                if (feature.width) {
+                    detailsDiv.innerHTML += `Width: ${feature.width.toFixed(2)}mm<br>`;
+                }
+                
+                card.appendChild(detailsDiv);
+                
+                // Add confidence score if available
+                if (feature.confidence !== undefined) {
+                    const confidenceDiv = document.createElement('div');
+                    confidenceDiv.className = 'confidence';
+                    confidenceDiv.textContent = `Confidence: ${(feature.confidence * 100).toFixed(1)}%`;
+                    card.appendChild(confidenceDiv);
+                }
+                
+                // Add manufacturing notes if available
+                if (feature.manufacturing_notes && feature.manufacturing_notes.length > 0) {
+                    const notesDiv = document.createElement('div');
+                    notesDiv.className = 'manufacturing-notes';
+                    notesDiv.innerHTML = feature.manufacturing_notes.join('<br>');
+                    card.appendChild(notesDiv);
+                }
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Update the classify button click handler
+        document.getElementById('classifyBtn').addEventListener('click', async () => {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const success = document.getElementById('success');
+            
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            success.style.display = 'none';
+            
+            try {
+                const response = await fetch('/classify', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Classification failed');
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Display classification results
+                displayClassificationResults(data.features);
+                
+                success.textContent = 'Features classified successfully!';
+                success.style.display = 'block';
+                
+            } catch (err) {
+                error.textContent = err.message;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html> 
