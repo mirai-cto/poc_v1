@@ -62,6 +62,29 @@ class CADAnalyzer:
             raise
         
     def get_bounding_box(self):
+        """
+        Compute the bounding box dimensions of the CAD model.
+
+        Uses OpenCASCADE's BRepBndLib to calculate the outermost bounds
+        of the shape loaded from the STEP file, returning the dimensions
+        along the X, Y, and Z axes in millimeters.
+
+        Returns
+        -------
+        dict
+            A dictionary containing:
+            - 'x' : float
+                Length of the bounding box along the X-axis (mm).
+            - 'y' : float
+                Length of the bounding box along the Y-axis (mm).
+            - 'z' : float
+                Length of the bounding box along the Z-axis (mm).
+
+        Notes
+        -----
+        The units are assumed to be in millimeters (default for most STEP files).
+        If you need min/max corner points, consider extending this method.
+        """
         bbox = Bnd_Box()
         brepbndlib.Add(self.shape, bbox)
         xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
@@ -580,15 +603,15 @@ class CADAnalyzer:
                 - analysis: Dictionary containing feature analysis and manufacturing recommendations
         """
         features = []
-        explorer = TopExp_Explorer(self.shape, TopAbs_FACE)
+        explorer = TopExp_Explorer(self.shape, TopAbs_FACE) # explorer iterates over all faces of the shape (TopAbs_FACE scope)
         while explorer.More():
-            face = explorer.Current()
-            surface = BRepAdaptor_Surface(face)
-            surface_type = surface.GetType()
-            props = GProp_GProps()
-            brepgprop.SurfaceProperties(face, props)
-            pnt = props.CentreOfMass()
-            coords = {'x': pnt.X(), 'y': pnt.Y(), 'z': pnt.Z()}
+            face = explorer.Current() # retrieves currently visited face
+            surface = BRepAdaptor_Surface(face) # adapts face to get surface geometry
+            surface_type = surface.GetType() # gets the surface type (plane, cylinder, etc.)
+            props = GProp_GProps() # initializes property container
+            brepgprop.SurfaceProperties(face, props) # computes surface properties (area, center of mass)
+            pnt = props.CentreOfMass() # gets center point of the surface
+            coords = {'x': pnt.X(), 'y': pnt.Y(), 'z': pnt.Z()} # stores center point as dict
             
             # Enhanced feature detection with detailed properties
             if surface_type == GeomAbs_Cylinder:
