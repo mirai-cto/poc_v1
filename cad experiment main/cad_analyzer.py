@@ -1,6 +1,7 @@
 import os
 import traceback
 import math
+import numpy as np
 from OCC.Core.STEPControl import STEPControl_Reader
 from OCC.Core.IFSelect import IFSelect_RetDone
 from OCC.Core.BRepBndLib import brepbndlib
@@ -9,7 +10,7 @@ from OCC.Core.Bnd import Bnd_Box
 from OCC.Core.TopAbs import TopAbs_FACE, TopAbs_EDGE, TopAbs_VERTEX
 from OCC.Core.TopExp import TopExp_Explorer
 from OCC.Core.BRepAdaptor import BRepAdaptor_Surface, BRepAdaptor_Curve
-from OCC.Core.GeomAbs import GeomAbs_Plane, GeomAbs_Cylinder, GeomAbs_Cone, GeomAbs_Line
+from OCC.Core.GeomAbs import GeomAbs_Circle, GeomAbs_Cylinder, GeomAbs_Line, GeomAbs_Plane, GeomAbs_Cone, GeomAbs_Ellipse, GeomAbs_BSplineCurve, GeomAbs_BezierCurve
 from OCC.Core.StlAPI import StlAPI_Writer
 from OCC.Core.GProp import GProp_GProps
 from OCC.Core.BRepMesh import BRepMesh_IncrementalMesh
@@ -162,104 +163,95 @@ class CADAnalyzer:
             raise
     
     def post_process_features(self, features):
-        """Clean up and validate features."""
+        """Clean up and validate features and extract manufacturing insights."""
         print(f"Post-processing {len(features)} features...")
         
-        # Remove duplicates based on position and type with tolerance
         unique_features = []
-        seen = set()
-        TOLERANCE = 0.001  # 1 micron tolerance for coordinate comparison
-        
-        def are_coords_similar(coord1, coord2):
-            return abs(coord1 - coord2) < TOLERANCE
-        
+        TOLERANCE = 0.001  # 1 micron tolerance
+
+        def are_coords_similar(c1, c2):
+            return abs(c1 - c2) < TOLERANCE
+
         for feature in features:
-            # Create a key that includes all relevant information
-            coords = (feature['x'], feature['y'], feature['z'])
-            
-            # Check if we've seen a similar feature
+            center = feature.get('center', {})
+            x, y, z = center.get('x'), center.get('y'), center.get('z')
+
+            if x is None or y is None or z is None:
+                print(f"Skipping feature with missing coordinates: {feature}")
+                continue
+
             is_duplicate = False
-            for seen_feature in unique_features:
-                if (feature['type'] == seen_feature['type'] and
-                    are_coords_similar(feature['x'], seen_feature['x']) and
-                    are_coords_similar(feature['y'], seen_feature['y']) and
-                    are_coords_similar(feature['z'], seen_feature['z'])):
+            for seen in unique_features:
+                seen_center = seen.get('center', {})
+                sx, sy, sz = seen_center.get('x'), seen_center.get('y'), seen_center.get('z')
+                if (feature['type'] == seen['type'] and
+                    are_coords_similar(x, sx) and
+                    are_coords_similar(y, sy) and
+                    are_coords_similar(z, sz)):
                     is_duplicate = True
-                    print(f"Found duplicate feature: {feature['type']} at ({feature['x']:.3f}, {feature['y']:.3f}, {feature['z']:.3f})")
+                    print(f"Found duplicate: {feature['type']} at ({x:.3f}, {y:.3f}, {z:.3f})")
                     break
-            
+
             if not is_duplicate:
                 unique_features.append(feature)
-        
-        print(f"Removed {len(features) - len(unique_features)} duplicate features")
-        
-        # Validate feature positions
-        valid_features = []
-        for feature in unique_features:
-            # Check if coordinates are within reasonable bounds
-            if all(abs(coord) < 10000 for coord in [feature['x'], feature['y'], feature['z']]):
-                valid_features.append(feature)
-            else:
-                print(f"Removed feature with invalid coordinates: {feature}")
-        
-        print(f"Removed {len(unique_features) - len(valid_features)} features with invalid coordinates")
-        
-        # Group similar features
+
+        print(f"Removed {len(features) - len(unique_features)} duplicates")
+
+        # ---- Group similar features ----
         grouped_features = {}
-        for feature in valid_features:
-            feature_type = feature['type']
-            if feature_type not in grouped_features:
-                grouped_features[feature_type] = []
-            grouped_features[feature_type].append(feature)
-        
-        # Analyze feature patterns
+        for feature in unique_features:
+            ftype = feature['type']
+            grouped_features.setdefault(ftype, []).append(feature)
+
+        # ---- Analyze feature patterns ----
         analysis = {
-            'total_features': len(valid_features),
+            'total_features': len(unique_features),
             'feature_types': {k: len(v) for k, v in grouped_features.items()},
             'feature_groups': grouped_features
         }
-        
-        # Add manufacturing insights
+
         insights = []
-        
-        # Analyze holes
-        if 'hole' in grouped_features:
-            holes = grouped_features['hole']
-            if len(holes) > 0:
-                # Check for hole patterns
-                z_coords = [h['z'] for h in holes]
+
+        # ---- Cylindrical Surface Analysis ----
+        if 'cylinder' in grouped_features:
+            cylinders = grouped_features['cylinder']
+            if len(cylinders) > 0:
+                z_coords = []
+                for c in cylinders:
+                    cz = c.get('center', {}).get('z')
+                    if cz is not None:
+                        z_coords.append(cz)
+
                 unique_z_levels = set()
                 for z in z_coords:
-                    # Group similar Z-levels
-                    found_similar = False
-                    for existing_z in unique_z_levels:
-                        if are_coords_similar(z, existing_z):
-                            found_similar = True
-                            break
+                    found_similar = any(are_coords_similar(z, existing) for existing in unique_z_levels)
                     if not found_similar:
                         unique_z_levels.add(z)
-                
+
                 if len(unique_z_levels) == 1:
-                    insights.append(f"All {len(holes)} holes are at the same Z-level")
+                    insights.append(f"All {len(cylinders)} cylindrical surfaces are at the same Z-level")
                 else:
-                    insights.append(f"Holes are at {len(unique_z_levels)} different Z-levels")
-        
-        # Analyze planar faces
-        if 'planar_face' in grouped_features:
-            faces = grouped_features['planar_face']
-            if len(faces) > 0:
-                # Check for parallel faces
-                insights.append(f"Found {len(faces)} planar faces - check for parallel surfaces")
-        
-        # Analyze chamfers
-        if 'chamfer' in grouped_features:
-            chamfers = grouped_features['chamfer']
-            if len(chamfers) > 0:
-                insights.append(f"Found {len(chamfers)} chamfers - verify angles and dimensions")
-        
+                    insights.append(f"Cylindrical surfaces span {len(unique_z_levels)} different Z-levels")
+
+        # ---- Planar Surface Analysis ----
+        if 'planar_surface' in grouped_features:
+            count = len(grouped_features['planar_surface'])
+            insights.append(f"Found {count} planar surfaces - check for reference or parallel planes")
+
+        # ---- Conical Surface Analysis ----
+        if 'conical_surface' in grouped_features:
+            count = len(grouped_features['conical_surface'])
+            insights.append(f"Found {count} conical surfaces - possible chamfers or complex tapers")
+
+        # ---- Circle Surface Analysis ----
+        if 'circle' in grouped_features:
+            count = len(grouped_features['circle'])
+            insights.append(f"Found {count} circless ")
+
         analysis['insights'] = insights
-        
-        return valid_features, analysis
+
+        return unique_features, analysis
+
 
     def analyze_manufacturing_features(self):
         """
@@ -595,67 +587,108 @@ class CADAnalyzer:
 
     def detect_features(self):
         """
-        Detect and analyze all features in the CAD model.
-        
+        Extract and return raw geometric primitives (cylindrical, planar, and conical surfaces) from the CAD model.
+
         Returns:
-            tuple: (cleaned_features, analysis)
-                - cleaned_features: List of detected features with properties
-                - analysis: Dictionary containing feature analysis and manufacturing recommendations
+            tuple: (features, analysis)
+                - features: List of raw surface features
+                - analysis: Dictionary (currently empty, reserved for downstream use)
         """
         features = []
-        explorer = TopExp_Explorer(self.shape, TopAbs_FACE) # explorer iterates over all faces of the shape (TopAbs_FACE scope)
+        explorer = TopExp_Explorer(self.shape, TopAbs_FACE)  # Traverse all faces
+        edge_explorer = TopExp_Explorer(self.shape, TopAbs_EDGE)
+ 
+
         while explorer.More():
-            face = explorer.Current() # retrieves currently visited face
-            surface = BRepAdaptor_Surface(face) # adapts face to get surface geometry
-            surface_type = surface.GetType() # gets the surface type (plane, cylinder, etc.)
-            props = GProp_GProps() # initializes property container
-            brepgprop.SurfaceProperties(face, props) # computes surface properties (area, center of mass)
-            pnt = props.CentreOfMass() # gets center point of the surface
-            coords = {'x': pnt.X(), 'y': pnt.Y(), 'z': pnt.Z()} # stores center point as dict
-            
-            # Enhanced feature detection with detailed properties
+            face = explorer.Current()  # Get current face
+            surface = BRepAdaptor_Surface(face)  # Get surface geometry
+            surface_type = surface.GetType()  # Identify surface type
+
+            props = GProp_GProps()
+            brepgprop.SurfaceProperties(face, props)  # Compute area, center of mass
+            center = props.CentreOfMass()
+            coords = {
+                'x': center.X(),
+                'y': center.Y(),
+                'z': center.Z()
+            }
+
             if surface_type == GeomAbs_Cylinder:
                 cylinder = surface.Cylinder()
-                radius = cylinder.Radius()
                 features.append({
-                    'type': 'hole',
-                    'confidence': 0.8,
-                    'details': 'Cylindrical surface detected',
-                    'diameter': radius * 2,
-                    'is_through_hole': self._is_through_hole(face),
-                    'recommended_tolerance': 'H7' if radius * 2 <= 10 else 'H8',
-                    **coords
+                    'type': 'cylinder',
+                    'radius': cylinder.Radius(),
+                    'axis': {
+                        'x': cylinder.Axis().Direction().X(),
+                        'y': cylinder.Axis().Direction().Y(),
+                        'z': cylinder.Axis().Direction().Z(),
+                    },
+                    'center': coords
                 })
+
             elif surface_type == GeomAbs_Plane:
                 normal = surface.Plane().Axis().Direction()
                 features.append({
-                    'type': 'planar_face',
-                    'confidence': 1.0,
-                    'details': 'Planar surface detected',
-                    'normal': {'x': normal.X(), 'y': normal.Y(), 'z': normal.Z()},
+                    'type': 'planar_surface',
+                    'normal': {
+                        'x': normal.X(),
+                        'y': normal.Y(),
+                        'z': normal.Z()
+                    },
                     'surface_area': props.Mass(),
-                    **coords
+                    'center': coords
                 })
+
             elif surface_type == GeomAbs_Cone:
                 cone = surface.Cone()
-                angle = math.degrees(cone.SemiAngle())
                 features.append({
-                    'type': 'chamfer',
-                    'confidence': 0.7,
-                    'details': 'Conical surface detected',
-                    'angle': angle,
-                    **coords
+                    'type': 'conical_surface',
+                    'angle_degrees': math.degrees(cone.SemiAngle()),
+                    'center': coords
                 })
+
             explorer.Next()
-        
+
+        while edge_explorer.More():
+            edge = edge_explorer.Current()
+            curve = BRepAdaptor_Curve(edge)
+            curve_type = curve.GetType()
+
+            if curve_type == GeomAbs_Circle:
+                circ = curve.Circle()
+                center = circ.Location()
+                axis = circ.Axis().Direction()
+                features.append({
+                    'type': 'circle',
+                    'radius': circ.Radius(),
+                    'axis': {
+                        'x': axis.X(),
+                        'y': axis.Y(),
+                        'z': axis.Z(),
+                    },
+                    'center': {
+                        'x': center.X(),
+                        'y': center.Y(),
+                        'z': center.Z(),
+                    }
+                })
+            edge_explorer.Next()
+
         # Post-process features and add manufacturing analysis
         cleaned_features, analysis = self.post_process_features(features)
         manufacturing_analysis = self.analyze_manufacturing_features()
         analysis['manufacturing'] = manufacturing_analysis
-        
+
+        # Flatten center coordinates for frontend compatibility
+        for feature in cleaned_features:
+            center = feature.get('center', {})
+            feature['x'] = center.get('x')
+            feature['y'] = center.get('y')
+            feature['z'] = center.get('z')
+
         print("Feature analysis:", analysis)
-        
         return cleaned_features, analysis
+
 
     def _is_through_hole(self, face):
         """

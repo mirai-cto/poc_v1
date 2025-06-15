@@ -357,87 +357,93 @@
         const error = document.getElementById('error');
         const success = document.getElementById('success');
 
-        function displayAnalysis(data) {
-            // Display dimensions
-            const dimensionsContent = document.getElementById('dimensions-content');
-            dimensionsContent.innerHTML = `
-                <div class="dimension-item">
-                    <span class="dimension-label">X:</span> ${data.bounding_box.x.toFixed(2)} mm
-                </div>
-                <div class="dimension-item">
-                    <span class="dimension-label">Y:</span> ${data.bounding_box.y.toFixed(2)} mm
-                </div>
-                <div class="dimension-item">
-                    <span class="dimension-label">Z:</span> ${data.bounding_box.z.toFixed(2)} mm
-                </div>
-            `;
+    function safeToFixed(val, digits = 2) {
+        return (typeof val === 'number') ? val.toFixed(digits) : 'N/A';
+    }
 
-            // Display manufacturing analysis
-            const manufacturingContent = document.getElementById('manufacturing-content');
-            const manufacturing = data.analysis.manufacturing;
+    function displayAnalysis(data) {
+        // Display dimensions
+        const dimensionsContent = document.getElementById('dimensions-content');
+        dimensionsContent.innerHTML = `
+            <div class="dimension-item">
+                <span class="dimension-label">X:</span> ${safeToFixed(data.bounding_box.x)} mm
+            </div>
+            <div class="dimension-item">
+                <span class="dimension-label">Y:</span> ${safeToFixed(data.bounding_box.y)} mm
+            </div>
+            <div class="dimension-item">
+                <span class="dimension-label">Z:</span> ${safeToFixed(data.bounding_box.z)} mm
+            </div>
+        `;
+
+        // Display manufacturing analysis
+        const manufacturingContent = document.getElementById('manufacturing-content');
+        const manufacturing = data.analysis.manufacturing || {};
+
+        manufacturingContent.innerHTML = `
+            <div class="manufacturing-item">
+                <div class="manufacturing-label">Wall Thickness</div>
+                <div class="manufacturing-value">
+                    Min: ${safeToFixed(manufacturing.wall_thickness?.min)} mm<br>
+                    Avg: ${safeToFixed(manufacturing.wall_thickness?.avg)} mm<br>
+                    Max: ${safeToFixed(manufacturing.wall_thickness?.max)} mm
+                </div>
+            </div>
             
-            manufacturingContent.innerHTML = `
-                <div class="manufacturing-item">
-                    <div class="manufacturing-label">Wall Thickness</div>
-                    <div class="manufacturing-value">
-                        Min: ${manufacturing.wall_thickness.min.toFixed(2)} mm<br>
-                        Avg: ${manufacturing.wall_thickness.avg.toFixed(2)} mm<br>
-                        Max: ${manufacturing.wall_thickness.max.toFixed(2)} mm
-                    </div>
+            <div class="manufacturing-item">
+                <div class="manufacturing-label">Surface Analysis</div>
+                <div class="surface-analysis">
+                    Planar Surfaces: ${manufacturing.surface_finish?.planar_surfaces ?? 'N/A'}<br>
+                    Cylindrical Surfaces: ${manufacturing.surface_finish?.cylindrical_surfaces ?? 'N/A'}<br>
+                    Complex Surfaces: ${manufacturing.surface_finish?.complex_surfaces ?? 'N/A'}<br>
+                    Recommended Finish: ${manufacturing.surface_finish?.surface_roughness_estimate ?? 'N/A'}
                 </div>
-                
-                <div class="manufacturing-item">
-                    <div class="manufacturing-label">Surface Analysis</div>
-                    <div class="surface-analysis">
-                        Planar Surfaces: ${manufacturing.surface_finish.planar_surfaces}<br>
-                        Cylindrical Surfaces: ${manufacturing.surface_finish.cylindrical_surfaces}<br>
-                        Complex Surfaces: ${manufacturing.surface_finish.complex_surfaces}<br>
-                        Recommended Finish: ${manufacturing.surface_finish.surface_roughness_estimate}
-                    </div>
+            </div>
+            
+            <div class="manufacturing-item">
+                <div class="manufacturing-label">Material Information</div>
+                <div class="manufacturing-value">
+                    Volume: ${safeToFixed(manufacturing.material_volume / 1000)} cm³<br>
+                    Surface Area: ${safeToFixed(manufacturing.surface_area / 100)} cm²
                 </div>
-                
-                <div class="manufacturing-item">
-                    <div class="manufacturing-label">Material Information</div>
-                    <div class="manufacturing-value">
-                        Volume: ${(manufacturing.material_volume / 1000).toFixed(2)} cm³<br>
-                        Surface Area: ${(manufacturing.surface_area / 100).toFixed(2)} cm²
-                    </div>
+            </div>
+            
+            <div class="manufacturing-item">
+                <div class="manufacturing-label">Tolerance Analysis</div>
+                <div class="tolerance-info">
+                    ${(manufacturing.tolerances?.hole_fits || []).map(hole => `
+                        <div>${hole.diameter}mm hole - ${hole.recommended_tolerance}</div>
+                    `).join('')}
                 </div>
-                
-                <div class="manufacturing-item">
-                    <div class="manufacturing-label">Tolerance Analysis</div>
-                    <div class="tolerance-info">
-                        ${manufacturing.tolerances.hole_fits.map(hole => `
-                            <div>${hole.diameter}mm hole - ${hole.recommended_tolerance}</div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
+            </div>
+        `;
 
-            // Display features
-            const featuresContent = document.getElementById('features-content');
-            featuresContent.innerHTML = data.features.map(feature => `
-                <div class="feature-item">
-                    <div class="feature-type">${feature.type}</div>
-                    <div class="feature-details">
-                        ${feature.details}<br>
-                        ${feature.diameter ? `Diameter: ${feature.diameter.toFixed(2)}mm<br>` : ''}
-                        ${feature.angle ? `Angle: ${feature.angle.toFixed(1)}°<br>` : ''}
-                        ${feature.surface_area ? `Surface Area: ${(feature.surface_area / 100).toFixed(2)}cm²<br>` : ''}
-                        ${feature.recommended_tolerance ? `Recommended Tolerance: ${feature.recommended_tolerance}<br>` : ''}
-                    </div>
-                    <div class="feature-coords">
-                        X: ${feature.x.toFixed(2)} Y: ${feature.y.toFixed(2)} Z: ${feature.z.toFixed(2)}
-                    </div>
+        // Display features
+        const featuresContent = document.getElementById('features-content');
+        featuresContent.innerHTML = data.features.map(feature => `
+            <div class="feature-item">
+                <div class="feature-type">${feature.type}</div>
+                <div class="feature-details">
+                    ${feature.details ? `${feature.details}<br>` : ''}
+                    ${feature.diameter ? `Diameter: ${feature.diameter.toFixed(2)}mm<br>` : ''}
+                    ${feature.radius ? `Radius: ${feature.radius.toFixed(2)}mm<br>` : ''}
+                    ${feature.angle_degrees ? `Angle: ${feature.angle_degrees.toFixed(1)}°<br>` : ''}
+                    ${feature.surface_area ? `Surface Area: ${(feature.surface_area / 100).toFixed(2)}cm²<br>` : ''}
+                    ${feature.recommended_tolerance ? `Recommended Tolerance: ${feature.recommended_tolerance}<br>` : ''}
                 </div>
-            `).join('');
+                <div class="feature-coords">
+                    X: ${safeToFixed(feature.x)} Y: ${safeToFixed(feature.y)} Z: ${safeToFixed(feature.z)}
+                </div>
+            </div>
+        `).join('');
 
-            // Display manufacturing notes
-            const machinistNotesContent = document.getElementById('machinist-notes-content');
-            machinistNotesContent.innerHTML = manufacturing.manufacturing_notes.map(note => `
-                <div class="note-item ${note.includes('Warning') ? 'warning' : ''}">${note}</div>
-            `).join('');
-        }
+        // Display manufacturing notes
+        const machinistNotesContent = document.getElementById('machinist-notes-content');
+        machinistNotesContent.innerHTML = (manufacturing.manufacturing_notes || []).map(note => `
+            <div class="note-item ${note.includes('Warning') ? 'warning' : ''}">${note}</div>
+        `).join('');
+    }
+
 
         uploadBtn.addEventListener('click', () => fileInput.click());
 
